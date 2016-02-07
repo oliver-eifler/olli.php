@@ -1,0 +1,42 @@
+[
+  {
+    "url": "/fahrzeuge",
+    "title": "About"
+  },
+  {
+    "url": "/fahrzeuge/ch1",
+    "title": "What ever are we doing?"
+  },
+  {
+    "url": "/fahrzeuge/ch2",
+    "title": "First Class Functions"
+  },
+  {
+    "url": "/fahrzeuge/ch3",
+    "title": "Pure Happiness with Pure Functions"
+  },
+  {
+    "url": "/fahrzeuge/ch4",
+    "title": "Currying"
+  },
+  {
+    "url": "/fahrzeuge/ch5",
+    "title": "Coding by Composing"
+  },
+  {
+    "url": "/fahrzeuge/ch6",
+    "title": "Example Application"
+  },
+  {
+    "url": "/fahrzeuge/ch7",
+    "title": "Hindley-Milner and Me"
+  },
+  {
+    "url": "/fahrzeuge/ch8",
+    "title": "Tupperware"
+  },
+  {
+    "url": "/fahrzeuge/ch9",
+    "title": "Monadic Onions"
+  }
+]

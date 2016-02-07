@@ -1,0 +1,213 @@
+<script type="json">{"isArticle":true,"title":"Chapter 6: Example Application","short":"Example Application","menuOrder":500,"layout":"article","htmlmin":true,"ctime":"2015-08-09T14:49:08.973Z","mtime":"2015-08-09T14:49:08.973Z"}</script>
+<h2 id="declarative-coding">Declarative coding</h2>
+<p>We are going to switch our mindset. From here on out, we&#39;ll stop telling the computer how to do its job and instead write a specification of what we&#39;d like as a result. I&#39;m sure you&#39;ll find it much less stressful than trying to micromanage everything all the time.</p>
+<p>Declarative, as opposed to imperative, means that we will write expressions, as opposed to step by step instructions.</p>
+<p>Think of SQL. There is no &quot;first do this, then do that&quot;. There is one expression that specifies what&#39;d like from the database. We don&#39;t decide how to do the work, it does. When the database is upgraded and the SQL engine optimized, we don&#39;t have to change our query. This is because there are many ways to interpret our specification and achieve the same result.</p>
+<p>For some folks, myself included, it&#39;s hard to grasp the concept of declarative coding at first so let&#39;s point out a few examples to get a feel for it.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// imperative</span>
+<span class="hljs-keyword">var</span> makes = [];
+<span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; cars.length; i++) {
+  makes.push(cars[i].make);
+}
+
+
+<span class="hljs-comment">// declarative</span>
+<span class="hljs-keyword">var</span> makes = cars.map(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(car)</span></span>{ <span class="hljs-keyword">return</span> car.make; });
+</code></pre>
+<p>The imperative loop must first instantiate the array. The interpreter must evaluate this statement before moving on. Then it directly iterates through the list of cars, manually increasing a counter and showing its bits and pieces to us in a vulgar display of explicit iteration.</p>
+<p>The <code>map</code> version is one expression. It does not require any order of evaluation. There is much freedom here for how the map function iterates and how the returned array may be assembled. It specifies <em>what</em>, not <em>how</em>. Thus, it wears the shiny declarative sash.</p>
+<p>In addition to being clearer and more concise, the map function may be optimized at will and our precious application code needn&#39;t change.</p>
+<p>For those of you who are thinking &quot;Yes, but it&#39;s much faster to do the imperative loop&quot;, I suggest you educate yourself on how the JIT optimizes your code. Here&#39;s a <a href="https://www.youtube.com/watch?v=65-RbBwZQdU">terrific video that may shed some light</a></p>
+<p>Here is another example.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// imperative</span>
+<span class="hljs-keyword">var</span> authenticate = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(form)</span> </span>{
+  <span class="hljs-keyword">var</span> user = toUser(form);
+  <span class="hljs-keyword">return</span> logIn(user);
+};
+
+<span class="hljs-comment">// declarative</span>
+<span class="hljs-keyword">var</span> authenticate = compose(logIn, toUser);
+</code></pre>
+<p>Though there&#39;s nothing necessarily wrong with the imperative version, there is still an encoded step-by-step evaluation baked in. The <code>compose</code> expression simply states a fact: Authentication is the composition of <code>toUser</code> and <code>logIn</code>. Again, this leaves wiggle room for support code changes and results in our application code being a high level specification.</p>
+<p>Because we are not encoding order of evaluation, declarative coding lends itself to parallel computing. This coupled with pure functions is why FP is a good option for the parallel future - we don&#39;t really need to do anything special to achieve parallel/concurrent systems.</p>
+<h2 id="a-flickr-of-functional-programming">A flickr of functional programming</h2>
+<p>We will now build an example application in a declarative, composable way. We&#39;ll still cheat and use side effects for now, but we&#39;ll keep them minimal and separate from our pure codebase. We are going to build a browser widget that sucks in flickr images and displays them. Let&#39;s start by scaffolding the app. Here&#39;s the html:</p>
+<pre class="highlight"><code class="hljs xml"><span class="hljs-doctype">&lt;!DOCTYPE html&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-title">html</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-title">head</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-title">script</span> <span class="hljs-attribute">src</span>=<span class="hljs-value">"https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.11/require.min.js"</span>&gt;</span><span class="javascript"></span><span class="hljs-tag">&lt;/<span class="hljs-title">script</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-title">script</span> <span class="hljs-attribute">src</span>=<span class="hljs-value">"flickr.js"</span>&gt;</span><span class="javascript"></span><span class="hljs-tag">&lt;/<span class="hljs-title">script</span>&gt;</span>
+  <span class="hljs-tag">&lt;/<span class="hljs-title">head</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-title">body</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-title">body</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-title">html</span>&gt;</span>
+</code></pre>
+<p>And here&#39;s the flickr.js skeleton:</p>
+<pre class="highlight"><code class="hljs javascript">requirejs.config({
+  paths: {
+    ramda: <span class="hljs-string">'https://cdnjs.cloudflare.com/ajax/libs/ramda/0.13.0/ramda.min'</span>,
+    jquery: <span class="hljs-string">'https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min'</span>
+  }
+});
+
+<span class="hljs-built_in">require</span>([
+    <span class="hljs-string">'ramda'</span>,
+    <span class="hljs-string">'jquery'</span>
+  ],
+  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(_, $)</span> </span>{
+    <span class="hljs-keyword">var</span> trace = _.curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(tag, x)</span> </span>{
+      <span class="hljs-built_in">console</span>.log(tag, x);
+      <span class="hljs-keyword">return</span> x;
+    });
+    <span class="hljs-comment">// app goes here</span>
+  });
+</code></pre>
+<p>We&#39;re pulling in <a href="http://ramdajs.com">ramda</a> instead of lodash or some other utility library. It includes <code>compose</code>, <code>curry</code>, and more. I&#39;ve used requirejs, which may seem like overkill, but we&#39;ll be using it throughout the book and consistency is key. Also, I&#39;ve started us off with our nice <code>trace</code> function for easy debugging.</p>
+<p>Now that that&#39;s out of the way, on to the spec. Our app will do 4 things.</p>
+<ol>
+<li>Construct a url for our particular search term</li>
+<li>Make the flickr api call</li>
+<li>Transform the resulting json into html images</li>
+<li>Place them on the screen</li>
+</ol>
+<p>There are 2 impure actions mentioned above. Do you see them? Those bits about getting data from the flickr api and placing it on the screen. Let&#39;s define those first so we can quarantine them.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> Impure = {
+  getJSON: _.curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(callback, url)</span> </span>{
+    $.getJSON(url, callback);
+  }),
+
+  setHtml: _.curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(sel, html)</span> </span>{
+    $(sel).html(html);
+  })
+};
+</code></pre>
+<p>Here we&#39;ve simply wrapped jQuery&#39;s methods to be curried and we&#39;ve swapped the arguments to a more favorable position. I&#39;ve namespaced them with <code>Impure</code> so we know these are dangerous functions. In a future example, we will make these two functions pure.</p>
+<p>Next we must construct a url to pass to our <code>Impure.getJSON</code> function.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> url = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(term)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-string">'http://api.flickr.com/services/feeds/photos_public.gne?tags='</span> + term + <span class="hljs-string">'&amp;format=json&amp;jsoncallback=?'</span>;
+};
+</code></pre>
+<p>There are fancy and overly complex ways of writing <code>url</code> pointfree using monoids[^we&#39;ll learn about these later] or combinators. We&#39;ve chosen to stick with a readable version and assemble this string in the normal pointful fashion.</p>
+<p>Let&#39;s write an app function that makes the call and places the contents on the screen.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> app = _.compose(Impure.getJSON(trace(<span class="hljs-string">"response"</span>)), url);
+
+app(<span class="hljs-string">"cats"</span>);
+</code></pre>
+<p>This calls our <code>url</code> function, then passes the string to our <code>getJSON</code> function, which has been partially applied with <code>trace</code>. Loading the app will show the response from the api call in the console.</p>
+<p><img src="/fahrzeuge/images/console_ss.png"/></p>
+<p>We&#39;d like to construct images out of this json. It looks like the srcs are buried in <code>items</code> then each <code>media</code>&#39;s <code>m</code> property.</p>
+<p>Anyhow, to get at these nested properties we can use a nice universal getter function from ramda called <code>_.prop()</code>. Here&#39;s a homegrown version so you can see what&#39;s happening:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> prop = _.curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(property, object)</span></span>{
+  <span class="hljs-keyword">return</span> object[property];
+});
+</code></pre>
+<p>It&#39;s quite dull actually. We just use <code>[]</code> syntax to access a property on whatever object. Let&#39;s use this to get at our srcs.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> mediaUrl = _.compose(_.prop(<span class="hljs-string">'m'</span>), _.prop(<span class="hljs-string">'media'</span>));
+
+<span class="hljs-keyword">var</span> srcs = _.compose(_.map(mediaUrl), _.prop(<span class="hljs-string">'items'</span>));
+</code></pre>
+<p>Once we gather the <code>items</code>, we must <code>map</code> over them to extract each media url. This results in a nice array of srcs. Let&#39;s hook this up to our app and print them on the screen.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> renderImages = _.compose(Impure.setHtml(<span class="hljs-string">"body"</span>), srcs);
+<span class="hljs-keyword">var</span> app = _.compose(Impure.getJSON(renderImages), url);
+</code></pre>
+<p>All we&#39;ve done is make a new composition that will call our <code>srcs</code> and set the body html with them. We&#39;ve replaced the <code>trace</code> call with <code>renderImages</code> now that we have something to render besides raw json. This will crudely display our srcs directly in the body.</p>
+<p>Our final step is to turn these srcs into bonafide images. In a bigger application, we&#39;d use a template/dom library like Handlebars or React. For this application though, we only need an img tag so let&#39;s stick with jQuery.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> img = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(url)</span> </span>{
+  <span class="hljs-keyword">return</span> $(<span class="hljs-string">'&lt;img /&gt;'</span>, { src: url });
+};
+</code></pre>
+<p>jQuery&#39;s <code>html()</code> method will accept an array of tags. We only have to transform our srcs into images and send them along to <code>setHtml</code>.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> images = _.compose(_.map(img), srcs);
+<span class="hljs-keyword">var</span> renderImages = _.compose(Impure.setHtml(<span class="hljs-string">"body"</span>), images);
+<span class="hljs-keyword">var</span> app = _.compose(Impure.getJSON(renderImages), url);
+</code></pre>
+<p>And we&#39;re done!</p>
+<p><img src="/fahrzeuge/images/cats_ss.png" /></p>
+<p>Here is the finished script:</p>
+<pre class="highlight"><code class="hljs javascript">requirejs.config({
+  paths: {
+    ramda: <span class="hljs-string">'https://cdnjs.cloudflare.com/ajax/libs/ramda/0.13.0/ramda.min'</span>,
+    jquery: <span class="hljs-string">'https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min'</span>
+  }
+});
+
+<span class="hljs-built_in">require</span>([
+    <span class="hljs-string">'ramda'</span>,
+    <span class="hljs-string">'jquery'</span>
+  ],
+  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(_, $)</span> </span>{
+    <span class="hljs-comment">////////////////////////////////////////////</span>
+    <span class="hljs-comment">// Utils</span>
+
+    <span class="hljs-keyword">var</span> Impure = {
+      getJSON: _.curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(callback, url)</span> </span>{
+        $.getJSON(url, callback);
+      }),
+
+      setHtml: _.curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(sel, html)</span> </span>{
+        $(sel).html(html);
+      })
+    };
+
+    <span class="hljs-keyword">var</span> img = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(url)</span> </span>{
+      <span class="hljs-keyword">return</span> $(<span class="hljs-string">'&lt;img /&gt;'</span>, { src: url });
+    };
+
+    <span class="hljs-keyword">var</span> trace = _.curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(tag, x)</span> </span>{
+      <span class="hljs-built_in">console</span>.log(tag, x);
+      <span class="hljs-keyword">return</span> x;
+    });
+
+    <span class="hljs-comment">////////////////////////////////////////////</span>
+
+    <span class="hljs-keyword">var</span> url = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(t)</span> </span>{
+      <span class="hljs-keyword">return</span> <span class="hljs-string">'http://api.flickr.com/services/feeds/photos_public.gne?tags='</span> + t + <span class="hljs-string">'&amp;format=json&amp;jsoncallback=?'</span>;
+    };
+
+    <span class="hljs-keyword">var</span> mediaUrl = _.compose(_.prop(<span class="hljs-string">'m'</span>), _.prop(<span class="hljs-string">'media'</span>));
+
+    <span class="hljs-keyword">var</span> srcs = _.compose(_.map(mediaUrl), _.prop(<span class="hljs-string">'items'</span>));
+
+    <span class="hljs-keyword">var</span> images = _.compose(_.map(img), srcs);
+
+    <span class="hljs-keyword">var</span> renderImages = _.compose(Impure.setHtml(<span class="hljs-string">"body"</span>), images);
+
+    <span class="hljs-keyword">var</span> app = _.compose(Impure.getJSON(renderImages), url);
+
+    app(<span class="hljs-string">"cats"</span>);
+  });
+</code></pre>
+<p>Now look at that. A beautifully declarative specification of what things are, not how they come to be. We now view each line as an equation with properties that hold. We can use these properties to reason about our application and refactor.</p>
+<h2 id="a-principled-refactor">A Principled Refactor</h2>
+<p>There is an optimization available - we map over each item to turn it into a media url, then we map again over those srcs to turn them into img tags. There is a law regarding map and composition:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// map's composition law</span>
+<span class="hljs-keyword">var</span> law = compose(map(f), map(g)) == map(compose(f, g));
+</code></pre>
+<p>We can use this property to optimize our code. Let&#39;s have a principled refactor.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// original code</span>
+<span class="hljs-keyword">var</span> mediaUrl = _.compose(_.prop(<span class="hljs-string">'m'</span>), _.prop(<span class="hljs-string">'media'</span>));
+
+<span class="hljs-keyword">var</span> srcs = _.compose(_.map(mediaUrl), _.prop(<span class="hljs-string">'items'</span>));
+
+<span class="hljs-keyword">var</span> images = _.compose(_.map(img), srcs);
+</code></pre>
+<p>Let&#39;s line up our maps. We can inline the call to <code>srcs</code> in <code>images</code> thanks to equational reasoning and purity.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> mediaUrl = _.compose(_.prop(<span class="hljs-string">'m'</span>), _.prop(<span class="hljs-string">'media'</span>));
+
+<span class="hljs-keyword">var</span> images = _.compose(_.map(img), _.map(mediaUrl), _.prop(<span class="hljs-string">'items'</span>));
+</code></pre>
+<p>Now that we&#39;ve lined up our <code>map</code>&#39;s we can apply the composition law.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> mediaUrl = _.compose(_.prop(<span class="hljs-string">'m'</span>), _.prop(<span class="hljs-string">'media'</span>));
+
+<span class="hljs-keyword">var</span> images = _.compose(_.map(_.compose(img, mediaUrl)), _.prop(<span class="hljs-string">'items'</span>));
+</code></pre>
+<p>Now the bugger will only loop once while turning each item into an img. Let&#39;s just make it a little more readable by extracting the function out.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> mediaUrl = _.compose(_.prop(<span class="hljs-string">'m'</span>), _.prop(<span class="hljs-string">'media'</span>));
+
+<span class="hljs-keyword">var</span> mediaToImg = _.compose(img, mediaUrl);
+
+<span class="hljs-keyword">var</span> images = _.compose(_.map(mediaToImg), _.prop(<span class="hljs-string">'items'</span>));
+</code></pre>
+<h2 id="in-summary">In Summary</h2>
+<p>We have seen how to put our new skills into use with a small, but real world app. We&#39;ve used our mathematical framework to reason about and refactor our code. But what about error handling and code branching? How can we make the whole application pure instead of merely namespacing destructive functions? How can we make our app safer and more expressive? These are the questions we will tackle in part 2.</p>
+<p><a href="/fahrzeuge/ch7">Chapter 7: Hindley-Milner and Me</a></p>
+

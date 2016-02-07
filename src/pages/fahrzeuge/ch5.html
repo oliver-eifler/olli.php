@@ -1,0 +1,251 @@
+<script type="json">{"isArticle":true,"title":"Chapter 5: Coding by Composing","short":"Coding by Composing","menuOrder":500,"layout":"article","htmlmin":true,"ctime":"2015-07-27T18:10:59.955Z","mtime":"2015-07-27T18:10:59.955Z"}</script>
+<h2 id="functional-husbandry">Functional husbandry</h2>
+<p>Here&#39;s <code>compose</code>:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> compose = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(f,g)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{
+    <span class="hljs-keyword">return</span> f(g(x));
+  };
+};
+</code></pre>
+<p><code>f</code> and <code>g</code> are functions and <code>x</code> is the value being &quot;piped&quot; through them.</p>
+<p>Composition feels like function husbandry. You, breeder of functions, select two with traits you&#39;d like to combine and mash them together to spawn a brand new one. Usage is as follows:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> toUpperCase = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{ <span class="hljs-keyword">return</span> x.toUpperCase(); };
+<span class="hljs-keyword">var</span> exclaim = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{ <span class="hljs-keyword">return</span> x + <span class="hljs-string">'!'</span>; };
+<span class="hljs-keyword">var</span> shout = compose(exclaim, toUpperCase);
+
+shout(<span class="hljs-string">"send in the clowns"</span>);
+<span class="hljs-comment">//=&gt; "SEND IN THE CLOWNS!"</span>
+</code></pre>
+<p>The composition of two functions returns a new function. This makes perfect sense: composing two units of some type (in this case function) should yield a new unit of that very type. You don&#39;t plug two legos together and get a lincoln log. There is a theory here, some underlying law that we will discover in due time.</p>
+<p>In our definition of <code>compose</code>, the <code>g</code> will run before the <code>f</code>, creating a right to left flow of data. This is much more readable than nesting a bunch of function calls. Without compose, the above would read:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> shout = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span></span>{
+  <span class="hljs-keyword">return</span> exclaim(toUpperCase(x));
+};
+</code></pre>
+<p>Instead of inside to outside, we run right to left, which I suppose is a step in the left direction[^boo]. Let&#39;s look at an example where sequence matters:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> head = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{ <span class="hljs-keyword">return</span> x[<span class="hljs-number">0</span>]; };
+<span class="hljs-keyword">var</span> reverse = reduce(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(acc, x)</span></span>{ <span class="hljs-keyword">return</span> [x].concat(acc); }, []);
+<span class="hljs-keyword">var</span> last = compose(head, reverse);
+
+last([<span class="hljs-string">'jumpkick'</span>, <span class="hljs-string">'roundhouse'</span>, <span class="hljs-string">'uppercut'</span>]);
+<span class="hljs-comment">//=&gt; 'uppercut'</span>
+</code></pre>
+<p><code>reverse</code> will turn the list around while <code>head</code> grabs the initial item. This results in an effective, albeit inefficient, <code>last</code> function. The sequence of functions in the composition should be apparent here. We could define a left to right version, however, we mirror the mathematical version much more closely as it stands. That&#39;s right, composition is straight from the math books. In fact, perhaps it&#39;s time to look at a property that holds for any composition.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// associativity</span>
+<span class="hljs-keyword">var</span> associative = compose(f, compose(g, h)) == compose(compose(f, g), h);
+<span class="hljs-comment">// true</span>
+</code></pre>
+<p>Composition is associative, meaning it doesn&#39;t matter how you group two of them. So, should we choose to uppercase the string, we can write:</p>
+<pre class="highlight"><code class="hljs javascript">compose(toUpperCase, compose(head, reverse));
+
+<span class="hljs-comment">// or</span>
+compose(compose(toUpperCase, head), reverse);
+</code></pre>
+<p>Since it doesn&#39;t matter how we group our calls to <code>compose</code>, the result will be the same. That allows use to write a variadic compose and use it as follows:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// previously we'd have to write two composes, but since it's associative, we can give compose as many fn's as we like and let it decide how to group them.</span>
+<span class="hljs-keyword">var</span> lastUpper = compose(toUpperCase, head, reverse);
+
+lastUpper([<span class="hljs-string">'jumpkick'</span>, <span class="hljs-string">'roundhouse'</span>, <span class="hljs-string">'uppercut'</span>]);
+<span class="hljs-comment">//=&gt; 'UPPERCUT'</span>
+
+
+<span class="hljs-keyword">var</span> loudLastUpper = compose(exclaim, toUpperCase, head, reverse)
+
+loudLastUpper([<span class="hljs-string">'jumpkick'</span>, <span class="hljs-string">'roundhouse'</span>, <span class="hljs-string">'uppercut'</span>]);
+<span class="hljs-comment">//=&gt; 'UPPERCUT!'</span>
+</code></pre>
+<p>Applying the associative property gives us this flexibility and peace of mind that the result will be equivalent. The slightly more complicated variadic definition is included with the support libraries for this book and is the normal definition you&#39;ll find in libraries like <a href="https://lodash.com/">lodash</a>, <a href="http://underscorejs.org/">underscore</a>, and <a href="http://ramdajs.com/">ramda</a>.</p>
+<p>One pleasant benefit of associativity is that any group of functions can be extracted and bundled together in their very own composition. Let&#39;s play with refactoring our previous example:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> loudLastUpper = compose(exclaim, toUpperCase, head, reverse);
+
+<span class="hljs-comment">// or</span>
+<span class="hljs-keyword">var</span> last = compose(head, reverse);
+<span class="hljs-keyword">var</span> loudLastUpper = compose(exclaim, toUpperCase, last);
+
+<span class="hljs-comment">// or</span>
+<span class="hljs-keyword">var</span> last = compose(head, reverse);
+<span class="hljs-keyword">var</span> angry = compose(exclaim, toUpperCase);
+<span class="hljs-keyword">var</span> loudLastUpper = compose(angry, last);
+
+<span class="hljs-comment">// more variations...</span>
+</code></pre>
+<p>There&#39;s no right or wrong answers - we&#39;re just plugging our legos together in whatever way we please. Usually it&#39;s best to group things in a reusable way like <code>last</code> and <code>angry</code>. If familiar with Fowler&#39;s &quot;<a href="http://martinfowler.com/books/refactoring.html">Refactoring</a>&quot;, one might recognize this process as &quot;<a href="http://refactoring.com/catalog/extractMethod.html">extract method</a>&quot;...except without all the object state to worry about.</p>
+<h2 id="pointfree">Pointfree</h2>
+<p>Pointfree style means never having to say your data. Excuse me. It means functions that never mention the data upon which they operate. First class functions, currying, and composition all play well together to create this style.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">//not pointfree because we mention the data: word</span>
+<span class="hljs-keyword">var</span> snakeCase = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(word)</span> </span>{
+  <span class="hljs-keyword">return</span> word.toLowerCase().replace(<span class="hljs-regexp">/\s+/ig</span>, <span class="hljs-string">'_'</span>);
+};
+
+<span class="hljs-comment">//pointfree</span>
+<span class="hljs-keyword">var</span> snakeCase = compose(replace(<span class="hljs-regexp">/\s+/ig</span>, <span class="hljs-string">'_'</span>), toLowerCase);
+</code></pre>
+<p>See how we partially applied <code>replace</code>? What we&#39;re doing is piping our data through each function of 1 argument. Currying allows us to prepare each function to just take its data, operate on it, and pass it along. Something else to notice is how we don&#39;t need the data to construct our function in the pointfree version, whereas in the pointful one, we must have our <code>word</code> available before anything else.</p>
+<p>Let&#39;s look at another example.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">//not pointfree because we mention the data: name</span>
+<span class="hljs-keyword">var</span> initials = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(name)</span> </span>{
+  <span class="hljs-keyword">return</span> name.split(<span class="hljs-string">' '</span>).map(compose(toUpperCase, head)).join(<span class="hljs-string">'. '</span>);
+};
+
+<span class="hljs-comment">//pointfree</span>
+<span class="hljs-keyword">var</span> initials = compose(join(<span class="hljs-string">'. '</span>), map(compose(toUpperCase, head)), split(<span class="hljs-string">' '</span>));
+
+initials(<span class="hljs-string">"hunter stockton thompson"</span>);
+<span class="hljs-comment">// 'H. S. T'</span>
+</code></pre>
+<p>Pointfree code can again, help us remove needless names and keep us concise and generic. Pointfree is a good litmus test for functional code as it let&#39;s us know we&#39;ve got small functions that take input to output. One can&#39;t compose a while loop, for instance. Be warned, however, pointfree is a double edge sword and can sometimes obfuscate intention. Not all functional code is pointfree and that is O.K. We&#39;ll shoot for it where we can and stick with normal functions otherwise.</p>
+<h2 id="debugging">Debugging</h2>
+<p>A common mistake is to compose something like <code>map</code>, a function of two arguments, without first partially applying it.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">//wrong - we end up giving angry an array and we partially applied map with god knows what.</span>
+<span class="hljs-keyword">var</span> latin = compose(map, angry, reverse);
+
+latin([<span class="hljs-string">"frog"</span>, <span class="hljs-string">"eyes"</span>]);
+<span class="hljs-comment">// error</span>
+
+
+<span class="hljs-comment">// right - each function expects 1 argument.</span>
+<span class="hljs-keyword">var</span> latin = compose(map(angry), reverse);
+
+latin([<span class="hljs-string">"frog"</span>, <span class="hljs-string">"eyes"</span>]);
+<span class="hljs-comment">// ["SEYE!", "GORF!"])</span>
+</code></pre>
+<p>If you are having trouble debugging a composition, we can use this helpful, but impure trace function to see what&#39;s going on.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> trace = curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(tag, x)</span></span>{
+  <span class="hljs-built_in">console</span>.log(tag, x);
+  <span class="hljs-keyword">return</span> x;
+});
+
+<span class="hljs-keyword">var</span> dasherize = compose(join(<span class="hljs-string">'-'</span>), replace(<span class="hljs-regexp">/\s{2,}/ig</span>, <span class="hljs-string">' '</span>), split(<span class="hljs-string">' '</span>));
+
+dasherize(<span class="hljs-string">'the world is a vampire'</span>);
+<span class="hljs-comment">// TypeError: Object the,world,is,a,vampire has no method 'replace'</span>
+</code></pre>
+<p>Something is wrong here, let&#39;s <code>trace</code></p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> dasherize = compose(join(<span class="hljs-string">'-'</span>), replace(<span class="hljs-regexp">/\s{2,}/ig</span>, <span class="hljs-string">' '</span>), trace(<span class="hljs-string">"after split"</span>), split(<span class="hljs-string">' '</span>));
+<span class="hljs-comment">// after split [ 'the', 'world', 'is', 'a', 'vampire' ]</span>
+</code></pre>
+<p>Ah! We need to <code>map</code> this <code>replace</code> since it&#39;s working on an array.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> dasherize = compose(join(<span class="hljs-string">'-'</span>), map(replace(<span class="hljs-regexp">/\s{2,}/ig</span>, <span class="hljs-string">' '</span>)), split(<span class="hljs-string">' '</span>));
+
+dasherize(<span class="hljs-string">'the world is a vampire'</span>);
+
+<span class="hljs-comment">// 'the-world-is-a-vampire'</span>
+</code></pre>
+<p>The <code>trace</code> function allows us to view the data at a certain point for debugging purposes. Languages like haskell and purescript have similar functions for ease of development.</p>
+<p>Composition will be our tool for constructing programs and, as luck would have it, is backed by a powerful theory that ensures things will work out for us. Let&#39;s examine this theory.</p>
+<h2 id="category-theory">Category theory</h2>
+<p>Category theory is an abstract branch of mathematics that can formalize concepts from several different branches such as set theory, type theory, group theory, logic, and more. It primarily deals with objects, morphisms, and transformations, which mirrors programming quite closely. Here is a chart of the same concepts as viewed from each separate theory.</p>
+<p><img src="/fahrzeuge/images/cat_theory.png" /></p>
+<p>Sorry, I didn&#39;t mean to frighten you. I don&#39;t expect you to be intimately familiar with all these concepts. My point is to show you how much duplication we have so you can see why category theory aims to unify these things.</p>
+<p>In category theory, we have something called... a category. It is defined as a collection with the following components:</p>
+<ul>
+<li>A collection of objects</li>
+<li>A collection of morphisms</li>
+<li>A notion of composition on the morphisms</li>
+<li>A distinguished morphism called identity</li>
+</ul>
+<p>Category theory is abstract enough to model many things, but let&#39;s apply this to types and functions, which is what we care about at the moment.</p>
+<p><strong>A collection of objects</strong>
+The objects will be data types. For instance, <code>String</code>, <code>Boolean</code>, <code>Number</code>, <code>Object</code>, etc. We often view data types as sets of all the possible values. One could look at <code>Boolean</code> as the set of <code>[true, false]</code> and <code>Number</code> as the set of all possible numeric values. Treating types as sets is useful because we can use set theory to work with them.</p>
+<p><strong>A collection of morphisms</strong>
+The morphisms will be our standard every day pure functions.</p>
+<p><strong>A notion of composition on the morphisms</strong>
+This, as you may have guessed, is our brand new toy - <code>compose</code>. We&#39;ve discussed that our <code>compose</code> function is associative which is no coincidence as it is a property that must hold for any composition in category theory.</p>
+<p>Here is an image demonstrating composition:</p>
+<p><img src="/fahrzeuge/images/cat_comp1.png" />
+<img src="/fahrzeuge/images/cat_comp2.png" /></p>
+<p>Here is a concrete example in code:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> g = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span></span>{ <span class="hljs-keyword">return</span> x.length; };
+<span class="hljs-keyword">var</span> f = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span></span>{ <span class="hljs-keyword">return</span> x === <span class="hljs-number">4</span>; };
+<span class="hljs-keyword">var</span> isFourLetterWord = compose(f, g);
+</code></pre>
+<p><strong>A distinguished morphism called identity</strong>
+Let&#39;s introduce a useful function called <code>id</code>. This function simply takes some input and spits it back at you. Take a look:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> id = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span></span>{ <span class="hljs-keyword">return</span> x; };
+</code></pre>
+<p>You might ask yourself &quot;What in the bloody hell is that useful for?&quot;. We&#39;ll make extensive use of this function in the following chapters, but for now think of it as a function that can stand in for our value - a function masquerading as every day data.</p>
+<p><code>id</code> must play nicely with compose. Here is a property that always holds for every unary[^unary: a one argument function] function f:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// identity</span>
+<span class="hljs-keyword">var</span> identity = compose(id, f) == compose(f, id) == f;
+<span class="hljs-comment">// true</span>
+</code></pre>
+<p>Hey, it&#39;s just like the identity property on numbers! If that&#39;s not immediately clear, take some time with it. Understand the futility. We&#39;ll be seeing <code>id</code> used all over the place soon, but for now we see it&#39;s a function that acts as a stand in for a given value. This is quite useful when writing pointfree code.</p>
+<p>So there you have it, a category of types and functions. If this is your first introduction, I imagine you&#39;re still a little fuzzy on what a category is and why it&#39;s useful. We will build upon this knowledge throughout the book. As of right now, in this chapter, on this line, you can at least see it as providing us with some wisdom regarding composition - namely, the associativity and identity properties.</p>
+<p>What are some other categories, you ask? Well, we can define one for directed graphs with nodes being objects, edges being morphisms, and composition just being path concatenation. We can define one for Numbers with <code>&gt;</code> as morphisms and 0 as identity[^actually any partial or total order can be a category]. There are heaps of categories, but for the purposes of this book, we&#39;ll only concern ourselves with the one defined above. We have sufficiently skimmed the surface and must move on.</p>
+<h2 id="in-summary">In Summary</h2>
+<p>Composition connects our functions together like a series of pipes. Data will flow through our application as it must - pure functions are input to output after all so breaking this chain would disregard output, rendering our software useless.</p>
+<p>We hold composition as a design principle above all others. This is because it keeps our app simple and reasonable. Category theory will play a big part in app architecture, modelling side effects, and ensuring correctness.</p>
+<p>We are now at a point where it would serve us well to see some of this in practice. Let&#39;s make an example application.</p>
+<p><a href="/fahrzeuge/ch6">Chapter 6: Example Application</a></p>
+<h2 id="exercises">Exercises</h2>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-built_in">require</span>(<span class="hljs-string">'../../support'</span>);
+<span class="hljs-keyword">var</span> _ = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ramda'</span>);
+<span class="hljs-keyword">var</span> accounting = <span class="hljs-built_in">require</span>(<span class="hljs-string">'accounting'</span>);
+
+<span class="hljs-comment">// Example Data</span>
+<span class="hljs-keyword">var</span> CARS = [
+    {name: <span class="hljs-string">"Ferrari FF"</span>, horsepower: <span class="hljs-number">660</span>, dollar_value: <span class="hljs-number">700000</span>, in_stock: <span class="hljs-literal">true</span>},
+    {name: <span class="hljs-string">"Spyker C12 Zagato"</span>, horsepower: <span class="hljs-number">650</span>, dollar_value: <span class="hljs-number">648000</span>, in_stock: <span class="hljs-literal">false</span>},
+    {name: <span class="hljs-string">"Jaguar XKR-S"</span>, horsepower: <span class="hljs-number">550</span>, dollar_value: <span class="hljs-number">132000</span>, in_stock: <span class="hljs-literal">false</span>},
+    {name: <span class="hljs-string">"Audi R8"</span>, horsepower: <span class="hljs-number">525</span>, dollar_value: <span class="hljs-number">114200</span>, in_stock: <span class="hljs-literal">false</span>},
+    {name: <span class="hljs-string">"Aston Martin One-77"</span>, horsepower: <span class="hljs-number">750</span>, dollar_value: <span class="hljs-number">1850000</span>, in_stock: <span class="hljs-literal">true</span>},
+    {name: <span class="hljs-string">"Pagani Huayra"</span>, horsepower: <span class="hljs-number">700</span>, dollar_value: <span class="hljs-number">1300000</span>, in_stock: <span class="hljs-literal">false</span>}
+  ];
+
+<span class="hljs-comment">// Exercise 1:</span>
+<span class="hljs-comment">// ============</span>
+<span class="hljs-comment">// use _.compose() to rewrite the function below. Hint: _.prop() is curried.</span>
+<span class="hljs-keyword">var</span> isLastInStock = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(cars)</span> </span>{
+  <span class="hljs-keyword">var</span> last_car = _.last(cars);
+  <span class="hljs-keyword">return</span> _.prop(<span class="hljs-string">'in_stock'</span>, last_car);
+};
+
+<span class="hljs-comment">// Exercise 2:</span>
+<span class="hljs-comment">// ============</span>
+<span class="hljs-comment">// use _.compose(), _.prop() and _.head() to retrieve the name of the first car</span>
+<span class="hljs-keyword">var</span> nameOfFirstCar = <span class="hljs-literal">undefined</span>;
+
+
+<span class="hljs-comment">// Exercise 3:</span>
+<span class="hljs-comment">// ============</span>
+<span class="hljs-comment">// Use the helper function _average to refactor averageDollarValue as a composition</span>
+<span class="hljs-keyword">var</span> _average = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(xs)</span> </span>{ <span class="hljs-keyword">return</span> reduce(add, <span class="hljs-number">0</span>, xs) / xs.length; }; <span class="hljs-comment">// &lt;- leave be</span>
+
+<span class="hljs-keyword">var</span> averageDollarValue = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(cars)</span> </span>{
+  <span class="hljs-keyword">var</span> dollar_values = map(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(c)</span> </span>{ <span class="hljs-keyword">return</span> c.dollar_value; }, cars);
+  <span class="hljs-keyword">return</span> _average(dollar_values);
+};
+
+
+<span class="hljs-comment">// Exercise 4:</span>
+<span class="hljs-comment">// ============</span>
+<span class="hljs-comment">// Write a function: sanitizeNames() using compose that returns a list of lowercase and underscored names: e.g: sanitizeNames(["Hello World"]) //=&gt; ["hello_world"].</span>
+
+<span class="hljs-keyword">var</span> _underscore = replace(<span class="hljs-regexp">/\W+/g</span>, <span class="hljs-string">'_'</span>); <span class="hljs-comment">//&lt;-- leave this alone and use to sanitize</span>
+
+<span class="hljs-keyword">var</span> sanitizeNames = <span class="hljs-literal">undefined</span>;
+
+
+<span class="hljs-comment">// Bonus 1:</span>
+<span class="hljs-comment">// ============</span>
+<span class="hljs-comment">// Refactor availablePrices with compose.</span>
+
+<span class="hljs-keyword">var</span> availablePrices = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(cars)</span> </span>{
+  <span class="hljs-keyword">var</span> available_cars = _.filter(_.prop(<span class="hljs-string">'in_stock'</span>), cars);
+  <span class="hljs-keyword">return</span> available_cars.map(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span></span>{
+    <span class="hljs-keyword">return</span> accounting.formatMoney(x.dollar_value);
+  }).join(<span class="hljs-string">', '</span>);
+};
+
+
+<span class="hljs-comment">// Bonus 2:</span>
+<span class="hljs-comment">// ============</span>
+<span class="hljs-comment">// Refactor to pointfree. Hint: you can use _.flip()</span>
+
+<span class="hljs-keyword">var</span> fastestCar = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(cars)</span> </span>{
+  <span class="hljs-keyword">var</span> sorted = _.sortBy(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(car)</span></span>{ <span class="hljs-keyword">return</span> car.horsepower }, cars);
+  <span class="hljs-keyword">var</span> fastest = _.last(sorted);
+  <span class="hljs-keyword">return</span> fastest.name + <span class="hljs-string">' is the fastest'</span>;
+};
+</code></pre>
+

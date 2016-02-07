@@ -1,0 +1,619 @@
+<script type="json">{"isArticle":true,"title":"Chapter 8: Tupperware","short":"Tupperware","menuOrder":800,"layout":"article","htmlmin":true,"ctime":"2015-07-27T18:10:59.924Z","mtime":"2015-07-27T18:10:59.924Z"}</script>
+<h2 id="the-mighty-container">The Mighty Container</h2>
+<p><img src="/fahrzeuge/images/jar.jpg" alt="http://blog.dwinegar.com/2011/06/another-jar.html" /></p>
+<p>We&#39;ve seen how to write programs which pipe data through a series of pure functions. They are declarative specifications of behaviour. But what about control flow, error handling, asynchronous actions, state and, dare I say, effects?! In this chapter, we will discover the foundation upon which all of these helpful abstractions are built.</p>
+<p>First we will create a container. This container must hold any type of value; a ziplock that holds only tapioca pudding is rarely useful. It will be an object, but we will not give it properties and methods in the OO sense. No, we will treat it like a treasure chest - a special box that cradles our valuable data.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> Container = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{
+  <span class="hljs-keyword">this</span>.__value = x;
+}
+
+Container.of = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{ <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> Container(x); };
+</code></pre>
+<p>Here is our first container. We&#39;ve thoughtfully named it <code>Container</code>. We will use <code>Container.of</code> as a constructor which saves us from having to write that god awful <code>new</code> keyword all over the place. There&#39;s more to the <code>of</code> function than meets the eye, but for now, think of it as the proper way to place values into our container.</p>
+<p>Let&#39;s examine our brand new box...</p>
+<pre class="highlight"><code class="hljs javascript">Container.of(<span class="hljs-number">3</span>)
+<span class="hljs-comment">//=&gt; Container(3)</span>
+
+
+Container.of(<span class="hljs-string">"hotdogs"</span>)
+<span class="hljs-comment">//=&gt; Container("hotdogs")</span>
+
+
+Container.of(Container.of({name: <span class="hljs-string">"yoda"</span>}))
+<span class="hljs-comment">//=&gt; Container(Container({name: "yoda" }))</span>
+</code></pre>
+<p>If you are using node, you will see <code>{__value: x}</code> even though we&#39;ve got ourselves a <code>Container(x)</code>. Chrome will output the type properly, but no matter; as long as we understand what a <code>Container</code> looks like, we&#39;ll be fine. In some environments you can overwrite the <code>inspect</code> method if you&#39;d like, but we will not be so thorough. For this book, we will write the conceptual output as if we&#39;d overwritten <code>inspect</code> as it&#39;s much more instructive than <code>{__value: x}</code> for pedagogical as well as aesthetic reasons.</p>
+<p>Let&#39;s make a few things clear before we move on:</p>
+<ul>
+<li><p><code>Container</code> is an object with one property. Lots of containers just hold one thing, though they aren&#39;t limited to one. We&#39;ve arbitrarily named its property <code>__value</code>.</p>
+</li>
+<li><p>The <code>__value</code> cannot be one specific type or our <code>Container</code> would hardly live up to the name.</p>
+</li>
+<li><p>Once data goes into the <code>Container</code> it stays there. We <em>could</em> get it out by using <code>.__value</code>, but that would defeat the purpose.</p>
+</li>
+</ul>
+<p>The reasons we&#39;re doing this will become clear as a mason jar, but for now, bare with me.</p>
+<h2 id="my-first-functor">My First Functor</h2>
+<p>Once our value, whatever it may be, is in the container, we&#39;ll need a way to run functions on it.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// (a -&gt; b) -&gt; Container a -&gt; Container b</span>
+Container.prototype.map = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(f)</span></span>{
+  <span class="hljs-keyword">return</span> Container.of(f(<span class="hljs-keyword">this</span>.__value))
+}
+</code></pre>
+<p>Why, it&#39;s just like Array&#39;s famous <code>map</code>, except we have <code>Container a</code> instead of <code>[a]</code>. And it works essentially the same way:</p>
+<pre class="highlight"><code class="hljs javascript">Container.of(<span class="hljs-number">2</span>).map(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(two)</span></span>{ <span class="hljs-keyword">return</span> two + <span class="hljs-number">2</span> })
+<span class="hljs-comment">//=&gt; Container(4)</span>
+
+
+Container.of(<span class="hljs-string">"flamethrowers"</span>).map(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(s)</span></span>{ <span class="hljs-keyword">return</span> s.toUpperCase() })
+<span class="hljs-comment">//=&gt; Container("FLAMETHROWERS")</span>
+
+
+Container.of(<span class="hljs-string">"bombs"</span>).map(concat(<span class="hljs-string">' away'</span>)).map(_.prop(<span class="hljs-string">'length'</span>))
+<span class="hljs-comment">//=&gt; Container(10)</span>
+</code></pre>
+<p>We can work with our value without ever having to leave the <code>Container</code>. This is a remarkable thing. Our value in the <code>Container</code> is handed to the <code>map</code> function so we can fuss with it and afterward, returned to its <code>Container</code> for safe keeping. As a result of never leaving the <code>Container</code>, we can continue to <code>map</code> away, running functions as we please. We can even change the type as we go along as demonstrated in the latter of the three examples.</p>
+<p>Wait a minute, if we keep calling <code>map</code>, it appears to be some sort of composition! What mathematical magic is at work here? Well chaps, we&#39;ve just discovered <em>Functors</em>. </p>
+<blockquote>
+<p>A Functor is a type that implements <code>map</code> and obeys some laws</p>
+</blockquote>
+<p>Yes, <em>Functor</em> is simply an interface with a contract. We could have just as easily named it <em>Mappable</em>, but now, where&#39;s the <em>fun</em> in that? Functors come from category theory and we&#39;ll look at the maths in detail toward the end of the chapter, but for now, let&#39;s work on intuition and practical uses for this bizarrely named interface.</p>
+<p>What reason could we possibly have for bottling up a value and using <code>map</code> to get at it? The answer reveals itself if we choose a better question: What do we gain from asking our container to apply functions for us? Well, abstraction of function application. When we <code>map</code> a function, we ask the container type to run it for us. This is a very powerful concept, indeed.</p>
+<h2 id="schr-dinger-s-maybe">Schrödinger&#39;s Maybe</h2>
+<p><img src="/fahrzeuge/images/cat.png" alt="cool cat, need reference" /></p>
+<p><code>Container</code> is fairly boring. In fact, it is usually called <code>Identity</code> and has about the same impact as our <code>id</code> function[^again there is a mathematical connection we&#39;ll look at when the time is right]. However, there are other functors, that is, container-like types that have a proper <code>map</code> function, which can provide useful behaviour whilst mapping. Let&#39;s define one now.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> Maybe = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{
+  <span class="hljs-keyword">this</span>.__value = x;
+}
+
+Maybe.of = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> Maybe(x);
+}
+
+Maybe.prototype.isNothing = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+  <span class="hljs-keyword">return</span> (<span class="hljs-keyword">this</span>.__value === <span class="hljs-literal">null</span> || <span class="hljs-keyword">this</span>.__value === <span class="hljs-literal">undefined</span>);
+}
+
+Maybe.prototype.map = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(f)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>.isNothing() ? Maybe.of(<span class="hljs-literal">null</span>) : Maybe.of(f(<span class="hljs-keyword">this</span>.__value));
+}
+</code></pre>
+<p>Now, <code>Maybe</code> looks a lot like <code>Container</code> with one minor change: it will first check to see if it has a value before calling the supplied function. This has the effect of side stepping those pesky nulls as we <code>map</code>.</p>
+<pre class="highlight"><code class="hljs javascript">Maybe.of(<span class="hljs-string">"Malkovich Malkovich"</span>).map(match(<span class="hljs-regexp">/a/ig</span>));
+<span class="hljs-comment">//=&gt; Maybe(['a', 'a'])</span>
+
+Maybe.of(<span class="hljs-literal">null</span>).map(match(<span class="hljs-regexp">/a/ig</span>));
+<span class="hljs-comment">//=&gt; Maybe(null)</span>
+
+Maybe.of({name: <span class="hljs-string">"Boris"</span>}).map(_.prop(<span class="hljs-string">"age"</span>)).map(add(<span class="hljs-number">10</span>));
+<span class="hljs-comment">//=&gt; Maybe(null)</span>
+
+Maybe.of({name: <span class="hljs-string">"Dinah"</span>, age: <span class="hljs-number">14</span>}).map(_.prop(<span class="hljs-string">"age"</span>)).map(add(<span class="hljs-number">10</span>));
+<span class="hljs-comment">//=&gt; Maybe(24)</span>
+</code></pre>
+<p>Notice our app doesn&#39;t explode with errors as we map functions over our null values. This is because <code>Maybe</code> will take care to check for a value each and every time it applies a function.</p>
+<p>This dot syntax is perfectly fine and functional, but for reasons mentioned in Part 1, we&#39;d like to maintain our pointfree style. As it happens, <code>map</code> is fully equip to delegate to whatever functor it receives:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">//  map :: Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b</span>
+<span class="hljs-keyword">var</span> map = curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(f, any_functor_at_all)</span> </span>{
+  <span class="hljs-keyword">return</span> any_functor_at_all.map(f);
+});
+</code></pre>
+<p>This is delightful as we can carry on with composition per usual and <code>map</code> will work as expected. This is the case with ramda&#39;s <code>map</code> as well. We&#39;ll use dot notation when it&#39;s instructive and the pointfree version when it&#39;s convenient. Did you notice that? I&#39;ve sneakily introduced extra notation into our type signature. The <code>Functor f =&gt;</code> tells us that <code>f</code> must be a Functor. Not that difficult, but I felt I should mention it.</p>
+<h2 id="use-cases">Use cases</h2>
+<p>In the wild, we&#39;ll typically see <code>Maybe</code> used in functions which might fail to return a result.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">//  safeHead :: [a] -&gt; Maybe(a)</span>
+<span class="hljs-keyword">var</span> safeHead = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(xs)</span> </span>{
+  <span class="hljs-keyword">return</span> Maybe.of(xs[<span class="hljs-number">0</span>]);
+};
+
+<span class="hljs-keyword">var</span> streetName = compose(map(_.prop(<span class="hljs-string">'street'</span>)), safeHead, _.prop(<span class="hljs-string">'addresses'</span>));
+
+streetName({addresses: []});
+<span class="hljs-comment">// Maybe(null)</span>
+
+streetName({addresses: [{street: <span class="hljs-string">"Shady Ln."</span>, number: <span class="hljs-number">4201</span>}]});
+<span class="hljs-comment">// Maybe("Shady Ln.")</span>
+</code></pre>
+<p><code>safeHead</code> is like our normal <code>_.head</code>, but with added type safety. A curious thing happens when <code>Maybe</code> is introduced into our code; we are forced to deal with those sneaky <code>null</code> values. The <code>safeHead</code> function is honest and up front about its possible failure - there&#39;s really nothing to be ashamed of - and so it returns a <code>Maybe</code> to inform us of this matter. We are more than merely <em>informed</em>, however, because we are forced to <code>map</code> to get at the value we want since it is tucked away inside the <code>Maybe</code> object. Essentially, this is a <code>null</code> check enforced by the <code>safeHead</code> function itself. We can now sleep better at night knowing a <code>null</code> value won&#39;t rear its ugly, decapitated head when we least expect it. Apis like this will upgrade a flimsy application from paper and tacks to wood and nails. They will guarantee safer software.</p>
+<p>Sometimes a function might return a <code>Maybe(null)</code> explicitly to signal failure. For instance:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">//  withdraw :: Number -&gt; Account -&gt; Maybe(Account)</span>
+<span class="hljs-keyword">var</span> withdraw = curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(amount, account)</span> </span>{
+  <span class="hljs-keyword">return</span> account.balance &gt;= amount ? Maybe.of({balance: account.balance - amount}) : Maybe.of(<span class="hljs-literal">null</span>); 
+});
+
+<span class="hljs-comment">//  finishTransaction :: Account -&gt; String</span>
+<span class="hljs-keyword">var</span> finishTransaction = compose(remainingBalance, updateLedger); <span class="hljs-comment">//&lt;-- omitted for simplicity</span>
+
+<span class="hljs-comment">//  getTwenty :: Account -&gt; Maybe(String)</span>
+<span class="hljs-keyword">var</span> getTwenty = compose(map(finishTransaction), withdraw(<span class="hljs-number">20</span>));
+
+
+
+getTwenty({ balance: <span class="hljs-number">200.00</span>});
+<span class="hljs-comment">// Maybe("Your balance is $180.00")</span>
+
+getTwenty({ balance: <span class="hljs-number">10.00</span>});
+<span class="hljs-comment">// Maybe(null)</span>
+</code></pre>
+<p><code>withdraw</code> will tip its nose at us and return <code>Maybe(null)</code> if we&#39;re short on cash. This function also communicates its fickleness and leaves us no choice, but to <code>map</code> everything afterwards. The difference is that the <code>null</code> was intentional here. Instead of a <code>Maybe(String)</code>, we get the <code>Maybe(null)</code> back to signal failure and our application effectively halts in its tracks. This is important to note: if the <code>withdraw</code> fails, then <code>map</code> will sever the rest of our computation since it doesn&#39;t ever run the mapped functions, namely <code>finishTransaction</code>. This is precisely the intended behaviour as we&#39;d prefer not to update our ledger or show a new balance if we hadn&#39;t successfully withdrawn funds.</p>
+<h2 id="releasing-the-value">Releasing the value</h2>
+<p>One thing people often miss is that there will always be an end of the line; some effecting function that sends JSON along, or prints to the screen, or alters our filesystem, or what have you. We cannot deliver the output with <code>return</code>, we must run some function or another to send it out into the world. We can phrase it like a Zen Buddhist koan: &quot;If a program has no observable effect, does it even run?&quot;. Does it run correctly for its own satisfaction? I suspect it merely burns some cycles and goes back to sleep...</p>
+<p>Our application&#39;s job is to retrieve, transform, and carry that data along until it&#39;s time to say goodbye and the function which does so may be mapped, thus the value needn&#39;t leave the warm womb of its container. Indeed, a common error is to try to remove the value from our <code>Maybe</code> one way or another as if the possible value inside will suddenly materialize and all will be forgiven. We must understand it may be a branch of code where our value is not around to live up to its destiny.  Our code, much like Schrödinger&#39;s cat, is in two states at once and should maintain that fact until the final function. This gives our code a linear flow despite the logical branching.</p>
+<p>There is, however, an escape hatch. If we would rather return a custom value and continue on, we can use a little helper called <code>maybe</code>.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">//  maybe :: b -&gt; (a -&gt; b) -&gt; Maybe a -&gt; b</span>
+<span class="hljs-keyword">var</span> maybe = curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x, f, m)</span> </span>{
+  <span class="hljs-keyword">return</span> m.isNothing() ? x : f(m.__value);
+});
+
+<span class="hljs-comment">//  getTwenty :: Account -&gt; String</span>
+<span class="hljs-keyword">var</span> getTwenty = compose(maybe(<span class="hljs-string">"You're broke!"</span>, finishTransaction), withdraw(<span class="hljs-number">20</span>));
+
+
+getTwenty({ balance: <span class="hljs-number">200.00</span>});
+<span class="hljs-comment">// "Your balance is $180.00"</span>
+
+getTwenty({ balance: <span class="hljs-number">10.00</span>});
+<span class="hljs-comment">// "You're broke!"</span>
+</code></pre>
+<p>We will now either return a static value (of the same type that <code>finishTransaction</code> returns) or continue on merrily finishing up the transaction sans <code>Maybe</code>. With <code>maybe</code>, we are witnessing the equivalent of an <code>if/else</code> statement whereas with <code>map</code>, the imperative analog would be: <code>if(x !== null) { return f(x) }</code>.</p>
+<p>The introduction of <code>Maybe</code> can cause some initial discomfort. Users of Swift and Scala will know what I mean as it&#39;s baked right into the core libraries under the guise of <code>Option(al)</code>. When pushed to deal with <code>null</code> checks all the time (and there are times we know with absolute certainty the value exists), most people can&#39;t help, but feel it&#39;s a tad laborious. However, with time, it will become second nature and you&#39;ll likely appreciate the safety. After all, most of the time it will prevent cut corners and save our hides.</p>
+<p>Writing unsafe software is like taking care to paint each egg with pastels before hurling it into traffic; like building a retirement home with materials warned against by three little pigs. It will do us well to put some safety into our functions and <code>Maybe</code> helps us do just that.</p>
+<h2 id="pure-error-handling">Pure Error Handling</h2>
+<p><img src="/fahrzeuge/images/fists.jpg" alt="pick a hand... need a reference" /></p>
+<p>It may come as a shock, but <code>throw/catch</code> is not very pure. When an error is thrown, instead of returning an output value, we sound the alarms! The function attacks, spewing thousands of 0&#39;s and 1&#39;s like shields &amp; spears in an electric battle against our intruding input. With our new friend <code>Either</code>, we can do better than to declare war on input, we can respond with a polite message. Let&#39;s take a look:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> Left = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{
+  <span class="hljs-keyword">this</span>.__value = x;
+}
+
+Left.of = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> Left(x);
+}
+
+Left.prototype.map = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(f)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>;
+}
+
+<span class="hljs-keyword">var</span> Right = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{
+  <span class="hljs-keyword">this</span>.__value = x;
+}
+
+Right.of = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> Right(x);
+}
+
+Right.prototype.map = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(f)</span> </span>{
+  <span class="hljs-keyword">return</span> Right.of(f(<span class="hljs-keyword">this</span>.__value));
+}
+</code></pre>
+<p><code>Left</code> and <code>Right</code> are two subclasses of an abstract type we call <code>Either</code>. I&#39;ve skipped the ceremony of creating the <code>Either</code> superclass as we won&#39;t ever use it, but it&#39;s good to be aware. Now then, there&#39;s nothing new here besides the two types. Let&#39;s see how they act:</p>
+<pre class="highlight"><code class="hljs javascript">Right.of(<span class="hljs-string">"rain"</span>).map(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(str)</span></span>{ <span class="hljs-keyword">return</span> <span class="hljs-string">"b"</span>+str; });
+<span class="hljs-comment">// Right("brain")</span>
+
+Left.of(<span class="hljs-string">"rain"</span>).map(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(str)</span></span>{ <span class="hljs-keyword">return</span> <span class="hljs-string">"b"</span>+str; });
+<span class="hljs-comment">// Left("rain")</span>
+
+Right.of({host: <span class="hljs-string">'localhost'</span>, port: <span class="hljs-number">80</span>}).map(_.prop(<span class="hljs-string">'host'</span>));
+<span class="hljs-comment">// Right('localhost')</span>
+
+Left.of(<span class="hljs-string">"rolls eyes..."</span>).map(_.prop(<span class="hljs-string">"host"</span>));
+<span class="hljs-comment">// Left('rolls eyes...')</span>
+</code></pre>
+<p><code>Left</code> is the teenagery sort and ignores our request to <code>map</code> over it. <code>Right</code> will work just like <code>Container</code> (a.k.a Identity). The power comes from the ability to embed an error message within the <code>Left</code>.</p>
+<p>Suppose we have a function that might not succeed. How about we calculate an age from a birth date. We could use <code>Maybe(null)</code> to signal failure and branch our program, however, that doesn&#39;t tell us much. Perhaps, we&#39;d like to know why it failed. Let&#39;s write this using <code>Either</code>.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> moment = <span class="hljs-built_in">require</span>(<span class="hljs-string">'moment'</span>);
+
+<span class="hljs-comment">//  getAge :: Date -&gt; User -&gt; Either(String, Number)</span>
+<span class="hljs-keyword">var</span> getAge = curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(now, user)</span> </span>{
+  <span class="hljs-keyword">var</span> birthdate = moment(user.birthdate, <span class="hljs-string">'YYYY-MM-DD'</span>);
+  <span class="hljs-keyword">if</span>(!birthdate.isValid()) <span class="hljs-keyword">return</span> Left.of(<span class="hljs-string">"Birth date could not be parsed"</span>);
+  <span class="hljs-keyword">return</span> Right.of(now.diff(birthdate, <span class="hljs-string">'years'</span>));
+});
+
+getAge(moment(), {birthdate: <span class="hljs-string">'2005-12-12'</span>});
+<span class="hljs-comment">// Right(9)</span>
+
+getAge(moment(), {birthdate: <span class="hljs-string">'20010704'</span>});
+<span class="hljs-comment">// Left("Birth date could not be parsed")</span>
+</code></pre>
+<p>Now, just like <code>Maybe(null)</code>, we are short circuiting our app when we return a <code>Left</code>. The difference, is now we have a clue as to why our program has derailed. Something to notice is that we return <code>Either(String, Number)</code>, which holds a <code>String</code> as its left value and a <code>Number</code> as its <code>Right</code>. This type signature is a bit informal as we haven&#39;t taken the time to define an actual <code>Either</code> superclass, however, we learn a lot from the type. It informs us that we&#39;re either getting an error message or the age back.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">//  fortune :: Number -&gt; String</span>
+<span class="hljs-keyword">var</span> fortune  = compose(concat(<span class="hljs-string">"If you survive, you will be "</span>), add(<span class="hljs-number">1</span>));
+
+<span class="hljs-comment">//  zoltar :: User -&gt; Either(String, _)</span>
+<span class="hljs-keyword">var</span> zoltar = compose(map(<span class="hljs-built_in">console</span>.log), map(fortune), getAge(moment()));
+
+zoltar({birthdate: <span class="hljs-string">'2005-12-12'</span>});
+<span class="hljs-comment">// "If you survive, you will be 10"</span>
+<span class="hljs-comment">// Right(undefined)</span>
+
+zoltar({birthdate: <span class="hljs-string">'balloons!'</span>});
+<span class="hljs-comment">// Left("Birth date could not be parsed")</span>
+</code></pre>
+<p>When the <code>birthdate</code> is valid, the program outputs its mystical fortune to the screen for us to behold. Otherwise, we are handed a <code>Left</code> with the error message plain as day though still tucked away in its container. That acts just as if we&#39;d thrown an error, but in a calm, mild manner fashion as opposed to losing its temper and screaming like a child when something goes wrong.</p>
+<p>In this example, we are logically branching our control flow depending on the validity of the birth date, yet it reads as one linear motion from right to left rather than climbing through the curly braces of a conditional statement. Usually, we&#39;d move the <code>console.log</code> out of our <code>zoltar</code> function and <code>map</code> it at the time of calling, but it&#39;s helpful to see how the <code>Right</code> branch differs. We use <code>_</code> in the right branch&#39;s type signature to indicate it&#39;s a value that should be ignored[^In some browsers you have to use <code>console.log.bind(console)</code> to use it first class].</p>
+<p>I&#39;d like to take this opportunity to point out something you may have missed: <code>fortune</code>, despite its use with <code>Either</code> in this example, is completely ignorant of any functors milling about. This was also the case with <code>finishTransaction</code> in the previous example. At the time of calling, a function can be surrounded by <code>map</code>, which transforms it from a non-functory function to a functory one, in informal terms. We call this process <em>lifting</em>. Functions tend to be better off working with normal data types rather than container types, then <em>lifted</em> into the right container as deemed necessary. This leads to simpler, more reusable functions that can be altered to work with any functor on demand.</p>
+<p><code>Either</code> is great for casual errors like validation as well as more serious, stop the show errors like missing files or broken sockets. Try replacing some of the <code>Maybe</code> examples with <code>Either</code> to give better feedback.</p>
+<p>Now, I can&#39;t help, but feel I&#39;ve done <code>Either</code> a disservice by introducing it as merely a container for error messages. It captures logical disjunction (a.k.a <code>||</code>) in a type. It also encodes the idea of a <em>Coproduct</em> from category theory, which won&#39;t be touched on in this book, but is well worth reading up on as there&#39;s properties to be exploited. It is the canonical sum type (or disjoint union of sets) because its amount of possible inhabitants is the sum of the two contained types[^I know that&#39;s a bit hand wavy so here&#39;s a <a href="https://www.fpcomplete.com/school/to-infinity-and-beyond/pick-of-the-week/sum-types">great article</a>]. There are many things <code>Either</code> can be, but as a functor, it is used for its error handling.</p>
+<p>Just like with <code>Maybe</code>, we have little <code>either</code>, which behaves similarly, but takes two functions instead of one and a static value. Each function should return the same type:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">//  either :: (a -&gt; c) -&gt; (b -&gt; c) -&gt; Either a b -&gt; c</span>
+<span class="hljs-keyword">var</span> either = curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(f, g, e)</span> </span>{
+  <span class="hljs-keyword">switch</span>(e.constructor) {
+    <span class="hljs-keyword">case</span> Left: <span class="hljs-keyword">return</span> f(e.__value);
+    <span class="hljs-keyword">case</span> Right: <span class="hljs-keyword">return</span> g(e.__value);
+  }
+});
+
+<span class="hljs-comment">//  zoltar :: User -&gt; _</span>
+<span class="hljs-keyword">var</span> zoltar = compose(<span class="hljs-built_in">console</span>.log, either(id, fortune), getAge(moment()));
+
+zoltar({birthdate: <span class="hljs-string">'2005-12-12'</span>});
+<span class="hljs-comment">// "If you survive, you will be 10"</span>
+<span class="hljs-comment">// undefined</span>
+
+zoltar({birthdate: <span class="hljs-string">'balloons!'</span>});
+<span class="hljs-comment">// "Birth date could not be parsed"</span>
+<span class="hljs-comment">// undefined</span>
+</code></pre>
+<p>Finally, a use for that mysterious <code>id</code> function. It simply parrots back the value in the <code>Left</code> to pass the error message to <code>console.log</code>. We&#39;ve made our fortune telling app more robust by enforcing error handling from within <code>getAge</code>. We either slap the user with a hard truth like a high five from a palm reader or we carry on with our process. And with that, we&#39;re ready to move on to an entirely different type of functor.</p>
+<h2 id="old-mcdonald-had-effects-">Old McDonald had Effects...</h2>
+<p><img src="/fahrzeuge/images/dominoes.jpg" alt="dominoes.. need a reference" /></p>
+<p>In our chapter about purity we saw a peculiar example of a pure function. This function contained a side-effect, but we dubbed it pure by wrapping its action in another function. Here&#39;s another example of this:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">//  getFromStorage :: String -&gt; (_ -&gt; String)</span>
+<span class="hljs-keyword">var</span> getFromStorage = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(key)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-keyword">return</span> localStorage[key];
+  }
+}
+</code></pre>
+<p>Had we not surrounded its guts in another function, <code>getFromStorage</code> would vary its output depending on external circumstance. With the sturdy wrapper in place, we will always get the same output per input: a function that, when called, will retrieve a particular item from <code>localStorage</code>. And just like that (maybe throw in a few Hail Mary&#39;s) we&#39;ve cleared our conscience and all is forgiven.</p>
+<p>Except, this isn&#39;t particularly useful now is it. Like a collectable action figure in its original packaging, we can&#39;t actually play with it. If only there were a way to reach inside of the container and get at its contents... Enter <code>IO</code>.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> IO = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(f)</span> </span>{
+  <span class="hljs-keyword">this</span>.__value = f;
+}
+
+IO.of = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> IO(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-keyword">return</span> x;
+  });
+}
+
+IO.prototype.map = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(f)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> IO(_.compose(f, <span class="hljs-keyword">this</span>.__value));
+}
+</code></pre>
+<p><code>IO</code> differs from the previous functors in that the <code>__value</code> is always a function. We don&#39;t think of its <code>__value</code> as a function, however - that is an implementation detail and we best ignore it. What is happening is exactly what we saw with the <code>getFromStorage</code> example: <code>IO</code> delays the impure action by capturing it in a function wrapper. As such, we think of <code>IO</code> as containing the return value of the wrapped action and not the wrapper itself. This is apparent in the <code>of</code> function: we have an <code>IO(x)</code>, the <code>IO(function(){ return x })</code> is just necessary to avoid evaluation.</p>
+<p>Let&#39;s see it in use:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">//  io_window_ :: IO Window</span>
+<span class="hljs-keyword">var</span> io_window = <span class="hljs-keyword">new</span> IO(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{ <span class="hljs-keyword">return</span> <span class="hljs-built_in">window</span>; });
+
+io_window.map(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(win)</span></span>{ <span class="hljs-keyword">return</span> win.innerWidth });
+<span class="hljs-comment">// IO(1430)</span>
+
+io_window.map(_.prop(<span class="hljs-string">'location'</span>)).map(_.prop(<span class="hljs-string">'href'</span>)).map(split(<span class="hljs-string">'/'</span>));
+<span class="hljs-comment">// IO(["http:", "", "localhost:8000", "blog", "posts"])</span>
+
+
+<span class="hljs-comment">//  $ :: String -&gt; IO [DOM]</span>
+<span class="hljs-keyword">var</span> $ = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(selector)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> IO(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{ <span class="hljs-keyword">return</span> <span class="hljs-built_in">document</span>.querySelectorAll(selector); });
+}
+
+$(<span class="hljs-string">'#myDiv'</span>).map(head).map(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(div)</span></span>{ <span class="hljs-keyword">return</span> div.innerHTML; });
+<span class="hljs-comment">// IO('I am some inner html')</span>
+</code></pre>
+<p>Here, <code>io_window</code> is an actual <code>IO</code> that we can <code>map</code> over straight away, whereas <code>$</code> is a function that returns an <code>IO</code> after its called. I&#39;ve written out the <em>conceptual</em> return values to better express the <code>IO</code>, though, in reality, it will always be <code>{ __value: [Function] }</code>. When we <code>map</code> over our <code>IO</code>, we stick that function at the end of a composition which, in turn, becomes the new <code>__value</code> and so on. Our mapped functions do not run, they get tacked on the end of a computation we&#39;re building up, function by function, like carefully placing dominoes that we don&#39;t dare tip over. The result is reminiscent of Gang of Four&#39;s command pattern or a queue.</p>
+<p>Take a moment to channel your functor intuition. If we see past the implementation details, we should feel right at home mapping over any container no matter its quirks or idiosyncrasies. We have the functor laws, which we will explore toward the end of the chapter, to thank for this pseudo-psychic power. At any rate, we can finally play with impure values without sacrificing our precious purity.</p>
+<p>Now, we&#39;ve caged the beast, but we&#39;ll still have to set it free at some point. Mapping over our <code>IO</code> has built up a mighty impure computation and running it is surely going to disturb the peace. So where and when can we pull the trigger? Is it even possible to run our <code>IO</code> and still wear white at our wedding? The answer is yes, if we put the onus the calling code. Our pure code, despite the nefarious plotting and scheming, maintains its innocence and it&#39;s the caller who gets burdened with the responsibility of actually running the effects. Let&#39;s see an example to make this concrete.</p>
+<pre class="highlight"><code class="hljs javascript">
+<span class="hljs-comment">////// Our pure library: lib/params.js ///////</span>
+
+<span class="hljs-comment">//  url :: IO String</span>
+<span class="hljs-keyword">var</span> url = <span class="hljs-keyword">new</span> IO(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{ <span class="hljs-keyword">return</span> <span class="hljs-built_in">window</span>.location.href; });
+
+<span class="hljs-comment">//  toPairs =  String -&gt; [[String]]</span>
+<span class="hljs-keyword">var</span> toPairs = compose(map(split(<span class="hljs-string">'='</span>)), split(<span class="hljs-string">'&amp;'</span>));
+
+<span class="hljs-comment">//  params :: String -&gt; [[String]]</span>
+<span class="hljs-keyword">var</span> params = compose(toPairs, last, split(<span class="hljs-string">'?'</span>));
+
+<span class="hljs-comment">//  findParam :: String -&gt; IO Maybe [String]</span>
+<span class="hljs-keyword">var</span> findParam = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(key)</span> </span>{
+  <span class="hljs-keyword">return</span> map(compose(Maybe.of, filter(compose(eq(key), head)), params), url);
+};
+
+<span class="hljs-comment">////// Impure calling code: main.js ///////</span>
+
+<span class="hljs-comment">// run it by calling __value()!</span>
+findParam(<span class="hljs-string">"searchTerm"</span>).__value();
+<span class="hljs-comment">// Maybe(['searchTerm', 'wafflehouse'])</span>
+</code></pre>
+<p>Our library keeps its hands clean by wrapping <code>url</code> in an <code>IO</code> and passing the buck to the caller. You might have also noticed that we have stacked our containers; it&#39;s perfectly reasonable to have a <code>IO(Maybe([x]))</code>, which is three functors deep[^<code>Array</code> is most definitely a mappable container type] and exceptionally expressive.</p>
+<p>There&#39;s something that&#39;s been bothering me and we should rectify it immediately: <code>IO</code>&#39;s <code>__value</code> isn&#39;t really its contained value, nor is it a private property as the underscore prefix suggests. It is the pin in the grenade and it is meant to be pulled by a caller in the most public of ways. Let&#39;s rename this property to <code>unsafePerformIO</code> to remind our users of its volatility.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> IO = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(f)</span> </span>{
+  <span class="hljs-keyword">this</span>.unsafePerformIO = f;
+}
+
+IO.prototype.map = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(f)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> IO(_.compose(f, <span class="hljs-keyword">this</span>.unsafePerformIO));
+}
+</code></pre>
+<p>There, much better. Now our calling code becomes <code>findParam(&quot;searchTerm&quot;).unsafePerformIO()</code>, which is clear as day to users (and readers) of the application.</p>
+<p><code>IO</code> will be a loyal companion, helping us tame those feral impure actions. Next, we&#39;ll see a type similar in spirit, but has a drastically different use case.</p>
+<h2 id="asynchronous-tasks">Asynchronous Tasks</h2>
+<p>Callbacks are the narrowing spiral staircase to hell. They are control flow as designed by M.C. Escher. With each nested callback squeezed in between the jungle gym of curly braces and parenthesis, they feel like limbo in an oubliette(how low can we go!). I&#39;m getting claustrophobic chills just thinking about them. Not to worry, we have a much better way of dealing with asynchronous code and it starts with an &quot;F&quot;.</p>
+<p>The internals are a bit too complicated to spill out all over the page here so we will use <code>Data.Task</code> (previously <code>Data.Future</code>) from Quildreen Motta&#39;s fantastic <a href="http://folktalejs.org/">Folktale</a>. Behold some example usage:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// Node readfile example:</span>
+<span class="hljs-comment">//=======================</span>
+
+<span class="hljs-keyword">var</span> fs = <span class="hljs-built_in">require</span>(<span class="hljs-string">'fs'</span>);
+
+<span class="hljs-comment">//  readFile :: String -&gt; Task(Error, JSON)</span>
+<span class="hljs-keyword">var</span> readFile = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(filename)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> Task(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(reject, result)</span> </span>{
+    fs.readFile(filename, <span class="hljs-string">'utf-8'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(err, data)</span> </span>{
+      err ? reject(err) : result(data);
+    });
+  });
+};
+
+readFile(<span class="hljs-string">"metamorphosis"</span>).map(split(<span class="hljs-string">'\n'</span>)).map(head);
+<span class="hljs-comment">// Task("One morning, as Gregor Samsa was waking up from anxious dreams, he discovered that</span>
+<span class="hljs-comment">// in bed he had been changed into a monstrous verminous bug.")</span>
+
+
+<span class="hljs-comment">// jQuery getJSON example:</span>
+<span class="hljs-comment">//========================</span>
+
+<span class="hljs-comment">//  getJSON :: String -&gt; {} -&gt; Task(Error, JSON)</span>
+<span class="hljs-keyword">var</span> getJSON = curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(url, params)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> Task(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(reject, result)</span> </span>{
+    $.getJSON(url, params, result).fail(reject);
+  });
+});
+
+getJSON(<span class="hljs-string">'/video'</span>, {id: <span class="hljs-number">10</span>}).map(_.prop(<span class="hljs-string">'title'</span>));
+<span class="hljs-comment">// Task("Family Matters ep 15")</span>
+
+<span class="hljs-comment">// We can put normal, non futuristic values inside as well</span>
+Task.of(<span class="hljs-number">3</span>).map(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(three)</span></span>{ <span class="hljs-keyword">return</span> three + <span class="hljs-number">1</span> });
+<span class="hljs-comment">// Task(4)</span>
+</code></pre>
+<p>The functions I&#39;m calling <code>reject</code> and <code>result</code> are our error and success callbacks, respectively. As you can see, we simply <code>map</code> over the <code>Task</code> to work on the future value as if it was right there in our grasp. By now <code>map</code> should be old hat.</p>
+<p>If you&#39;re familiar with promises, you might recognize the function <code>map</code> as <code>then</code> with <code>Task</code> playing the role of our promise. Don&#39;t fret if you aren&#39;t familiar with promises, we won&#39;t be using them anyhow because they are not pure, but the analogy holds nonetheless.</p>
+<p>Like <code>IO</code>, <code>Task</code> will patiently wait for us to give it the green light before running. In fact, because it waits for our command, <code>IO</code> is effectively subsumed by <code>Task</code> for all things asynchronous; <code>readFile</code> and <code>getJSON</code> don&#39;t require an extra <code>IO</code> container to be pure. What&#39;s more, <code>Task</code> works in a similar fashion when we <code>map</code> over it: we&#39;re placing instructions for the future like a chore chart in a time capsule - an act of sophisticated technological procrastination.</p>
+<p>To run our <code>Task</code>, we must call the method <code>fork</code>. This works like <code>unsafePerformIO</code>, but as the name suggests, it will fork our process and evaluation continues on without blocking our thread. This can be implemented in numerous ways with threads and such, but here it acts as a normal async call would and the big wheel of the event loop keeps on turning. Let&#39;s look at <code>fork</code>:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// Pure application</span>
+<span class="hljs-comment">//=====================</span>
+<span class="hljs-comment">// blogTemplate :: String</span>
+
+<span class="hljs-comment">//  blogPage :: Posts -&gt; HTML</span>
+<span class="hljs-keyword">var</span> blogPage = Handlebars.compile(blogTemplate);
+
+<span class="hljs-comment">//  renderPage :: Posts -&gt; HTML</span>
+<span class="hljs-keyword">var</span> renderPage = compose(blogPage, sortBy(<span class="hljs-string">'date'</span>));
+
+<span class="hljs-comment">//  blog :: Params -&gt; Task(Error, HTML)</span>
+<span class="hljs-keyword">var</span> blog = compose(map(renderPage), getJSON(<span class="hljs-string">'/posts'</span>));
+
+
+<span class="hljs-comment">// Impure calling code</span>
+<span class="hljs-comment">//=====================</span>
+blog({}).fork(
+  <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(error)</span></span>{ $(<span class="hljs-string">"#error"</span>).html(error.message); },
+  <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(page)</span></span>{ $(<span class="hljs-string">"#main"</span>).html(page); }
+);
+
+$(<span class="hljs-string">'#spinner'</span>).show();
+</code></pre>
+<p>Upon calling <code>fork</code>, the <code>Task</code> hurries off to find some posts and render the page. Meanwhile, we show a spinner since <code>fork</code> does not wait for a response. Finally, we will either display an error or render the page onto the screen depending if the <code>getJSON</code> call succeeded or not.</p>
+<p>Take a moment to consider how linear the control flow is here. We just read bottom to top, right to left even though the program will actually jump around a bit during execution. This makes reading and reasoning about our application simpler than having to bounce between callbacks and error handling blocks.</p>
+<p>Goodness, would you look at that, <code>Task</code> has also swallowed up <code>Either</code>! It must do so in order to handle futuristic failures since our normal control flow does not apply in the async world. This is all well and good as it provides sufficient and pure error handling out of the box.</p>
+<p>Even with <code>Task</code>, our <code>IO</code> and <code>Either</code> functors are not out of a job. Bear with me on a quick example that leans toward the more complex and hypothetical side, but is useful for illustrative purposes.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// Postgres.connect :: Url -&gt; DbConnection</span>
+<span class="hljs-comment">// runQuery :: DbConnection -&gt; ResultSet</span>
+
+
+<span class="hljs-comment">// Pure application</span>
+<span class="hljs-comment">//=====================</span>
+
+<span class="hljs-comment">//  dbUrl :: Config -&gt; Either(Error, Url)</span>
+<span class="hljs-keyword">var</span> dbUrl = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(c)</span> </span>{
+  <span class="hljs-keyword">return</span> (c.uname &amp;&amp; c.pass &amp;&amp; c.host &amp;&amp; c.db)
+    ? Right.of(<span class="hljs-string">"db:pg://"</span>+c.uname+<span class="hljs-string">":"</span>+c.pass+<span class="hljs-string">"@"</span>+c.host+<span class="hljs-string">"5432/"</span>+c.db)
+    : Left.of(<span class="hljs-built_in">Error</span>(<span class="hljs-string">"Invalid config!"</span>));
+}
+
+<span class="hljs-comment">//  connectDb :: Config -&gt; Either(Error, IO(DbConnection))</span>
+<span class="hljs-keyword">var</span> connectDb = compose(map(Postgres.connect), dbUrl);
+
+<span class="hljs-comment">//  getConfig :: Filename -&gt; Task(Error, Either(Error, IO(DbConnection)))</span>
+<span class="hljs-keyword">var</span> getConfig = compose(map(compose(connectDB, <span class="hljs-built_in">JSON</span>.parse)), readFile);
+
+
+<span class="hljs-comment">// Impure calling code</span>
+<span class="hljs-comment">//=====================</span>
+getConfig(<span class="hljs-string">"db.json"</span>).fork(logErr(<span class="hljs-string">"couldn't read file"</span>), either(<span class="hljs-built_in">console</span>.log, map(runQuery)));
+</code></pre>
+<p>In this example, we still make use of <code>Either</code> and <code>IO</code> from within the success branch of <code>readFile</code>. <code>Task</code> takes care of the impurities of reading a file asynchronously, but we still deal with validating the config with <code>Either</code> and wrangling the db connection with <code>IO</code>. So you see, we&#39;re still in business for all things synchronous.</p>
+<p>I could go on, but that&#39;s all there is to it. Simple as <code>map</code>.</p>
+<p>In practice, you&#39;ll likely have multiple asynchronous tasks in one workflow and we haven&#39;t yet acquired the full container apis to tackle this scenario. Not to worry, we&#39;ll look at monads and such soon, but first, we must examine the maths that make this all possible.</p>
+<h2 id="a-spot-of-theory">A Spot of Theory</h2>
+<p>As mentioned before, functors come from category theory and satisfy a few laws. Let&#39;s first explore these useful properties.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// identity</span>
+map(id) === id;
+
+<span class="hljs-comment">// composition</span>
+compose(map(f), map(g)) === map(compose(f, g));
+</code></pre>
+<p>The <em>identity</em> law is simple, but important. These laws are runnable bits of code so we can try them on our own functors to validate their legitimacy.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> idLaw1 = map(id);
+<span class="hljs-keyword">var</span> idLaw2 = id;
+
+idLaw1(Container.of(<span class="hljs-number">2</span>));
+<span class="hljs-comment">//=&gt; Container(2)</span>
+
+idLaw2(Container.of(<span class="hljs-number">2</span>));
+<span class="hljs-comment">//=&gt; Container(2)</span>
+</code></pre>
+<p>You see, they are equal. Next let&#39;s look at composition.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> compLaw1 = compose(map(concat(<span class="hljs-string">" world"</span>)), map(concat(<span class="hljs-string">" cruel"</span>)));
+<span class="hljs-keyword">var</span> compLaw2 = map(compose(concat(<span class="hljs-string">" world"</span>), concat(<span class="hljs-string">" cruel"</span>)));
+
+compLaw1(Container.of(<span class="hljs-string">"Goodbye"</span>));
+<span class="hljs-comment">//=&gt; Container('Goodbye cruel world')</span>
+
+compLaw2(Container.of(<span class="hljs-string">"Goodbye"</span>));
+<span class="hljs-comment">//=&gt; Container('Goodbye cruel world')</span>
+</code></pre>
+<p>In category theory, functors take the objects and morphisms of a category and map them to a different category. By definition, this new category must have an identity and the ability to compose morphisms, but we needn&#39;t check because the aforementioned laws ensure these are preserved.</p>
+<p>Perhaps our definition of a category is still a bit fuzzy. You can think of a category as a network of objects with morphisms that connect them. So a functor would map the one category to the other without breaking the network. If an object <code>a</code> is in our source category <code>C</code>, when we map it to category <code>D</code> with functor <code>F</code>, we refer to that object as <code>F a</code> (If you put it together what does that spell?!). Perhaps, it&#39;s better to look at a diagram:</p>
+<p><img src="/fahrzeuge/images/catmap.png" alt="Categories mapped" /></p>
+<p>For instance, <code>Maybe</code> maps our category of types and functions to a category where each object may not exist and each morphism has a <code>null</code> check. We accomplish this in code by surrounding each function with <code>map</code> and each type with our functor. We know that each of our normal types and functions will continue to compose in this new world. Technically, each functor in our code maps to a sub category of types and functions which makes all functors a particular brand called endofunctors, but for our purposes, we&#39;ll think of it as a different category.</p>
+<p>We can also visualize the mapping of a morphism and its corresponding objects with this diagram:</p>
+<p><img src="/fahrzeuge/images/functormap.png" alt="functor diagram" /></p>
+<p>In addition to visualizing the mapped morphism from one category to another under the functor <code>F</code>, we see that the diagram commutes, which is to say, if you follow the arrows each route produces the same result. The different routes means different behavior, but we always end at the same type. This formalism gives us principled ways to reason about our code - we can boldly apply formulas without having to parse and examine each individual scenario. Let&#39;s take a concrete example. </p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">//  topRoute :: String -&gt; Maybe(String)</span>
+<span class="hljs-keyword">var</span> topRoute = compose(Maybe.of, reverse);
+
+<span class="hljs-comment">//  bottomRoute :: String -&gt; Maybe(String)</span>
+<span class="hljs-keyword">var</span> bottomRoute = compose(map(reverse), Maybe.of);
+
+
+topRoute(<span class="hljs-string">"hi"</span>);
+<span class="hljs-comment">// Maybe("ih")</span>
+
+bottomRoute(<span class="hljs-string">"hi"</span>);
+<span class="hljs-comment">// Maybe("ih")</span>
+</code></pre>
+<p>Or visually:</p>
+<p><img src="/fahrzeuge/images/functormapmaybe.png" alt="functor diagram 2" /></p>
+<p>We can instantly see and refactor code based on properties held by all functors.</p>
+<p>Functors can stack:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> nested = Task.of([Right.of(<span class="hljs-string">"pillows"</span>), Left.of(<span class="hljs-string">"no sleep for you"</span>)]);
+
+map(map(map(toUpperCase)), nested);
+<span class="hljs-comment">// Task([Right("PILLOWS"), Left("no sleep for you")])</span>
+</code></pre>
+<p>What we have here with <code>nested</code> is a future array of elements that might be errors. We <code>map</code> to peel back each layer and run our function on the elements. We see no callbacks, if/else&#39;s, or for loops; just an explicit context. We do, however, have to <code>map(map(map(f)))</code>. We can instead compose functors. You heard me correctly:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> Compose = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(f_g_x)</span></span>{
+  <span class="hljs-keyword">this</span>.getCompose = f_g_x;
+}
+
+Compose.prototype.map = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(f)</span></span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> Compose(map(map(f), <span class="hljs-keyword">this</span>.getCompose));
+}
+
+<span class="hljs-keyword">var</span> tmd = Task.of(Maybe.of(<span class="hljs-string">"Rock over London"</span>))
+
+<span class="hljs-keyword">var</span> ctmd = <span class="hljs-keyword">new</span> Compose(tmd);
+
+map(concat(<span class="hljs-string">", rock on, Chicago"</span>), ctmd);
+<span class="hljs-comment">// Compose(Task(Maybe("Rock over London, rock on, Chicago")))</span>
+
+ctmd.getCompose;
+<span class="hljs-comment">// Task(Maybe("Rock over London, rock on, Chicago"))</span>
+</code></pre>
+<p>There, one <code>map</code>. Functor composition is associative and earlier, we defined <code>Container</code>, which is actually called the <code>Identity</code> functor. If we have identity and associative composition we have a category. This particular category has categories as objects and functors as morphisms, which is enough to make one&#39;s brain perspire. We won&#39;t delve too far into this, but it&#39;s nice to appreciate the architectural implications or even just the simple abstract beauty in the pattern.</p>
+<h2 id="in-summary">In Summary</h2>
+<p>We&#39;ve seen a few different functors, but there are infinitely many. Some notable omissions are iterable data structures like trees, lists, maps, pairs, you name it. eventstreams and observables are both functors. Others can be for encapsulation or even just type modelling. Functors are all around us and we&#39;ll use them extensively throughout the book.</p>
+<p>What about calling a function with multiple functor arguments? How about working with an order sequence of impure or async actions? We haven&#39;t yet acquired the full tool set for working in this boxed up world. Next, we&#39;ll cut right to the chase and look at monads.</p>
+<p><a href="/fahrzeuge/ch9">Chapter 9: Monadic Onions</a></p>
+<h2 id="exercises">Exercises</h2>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-built_in">require</span>(<span class="hljs-string">'../../support'</span>);
+<span class="hljs-keyword">var</span> Task = <span class="hljs-built_in">require</span>(<span class="hljs-string">'data.task'</span>);
+<span class="hljs-keyword">var</span> _ = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ramda'</span>);
+
+<span class="hljs-comment">// Exercise 1</span>
+<span class="hljs-comment">// ==========</span>
+<span class="hljs-comment">// Use _.add(x,y) and _.map(f,x) to make a function that increments a value inside a functor</span>
+
+<span class="hljs-keyword">var</span> ex1 = <span class="hljs-literal">undefined</span>
+
+
+
+<span class="hljs-comment">//Exercise 2</span>
+<span class="hljs-comment">// ==========</span>
+<span class="hljs-comment">// Use _.head to get the first element of the list</span>
+<span class="hljs-keyword">var</span> xs = Identity.of([<span class="hljs-string">'do'</span>, <span class="hljs-string">'ray'</span>, <span class="hljs-string">'me'</span>, <span class="hljs-string">'fa'</span>, <span class="hljs-string">'so'</span>, <span class="hljs-string">'la'</span>, <span class="hljs-string">'ti'</span>, <span class="hljs-string">'do'</span>]);
+
+<span class="hljs-keyword">var</span> ex2 = <span class="hljs-literal">undefined</span>
+
+
+
+<span class="hljs-comment">// Exercise 3</span>
+<span class="hljs-comment">// ==========</span>
+<span class="hljs-comment">// Use safeProp and _.head to find the first initial of the user</span>
+<span class="hljs-keyword">var</span> safeProp = _.curry(<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(x, o)</span> </span>{ <span class="hljs-keyword">return</span> Maybe.of(o[x]); });
+
+<span class="hljs-keyword">var</span> user = { id: <span class="hljs-number">2</span>, name: <span class="hljs-string">"Albert"</span> };
+
+<span class="hljs-keyword">var</span> ex3 = <span class="hljs-literal">undefined</span>
+
+
+<span class="hljs-comment">// Exercise 4</span>
+<span class="hljs-comment">// ==========</span>
+<span class="hljs-comment">// Use Maybe to rewrite ex4 without an if statement</span>
+
+<span class="hljs-keyword">var</span> ex4 = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(n)</span> </span>{
+  <span class="hljs-keyword">if</span> (n) { <span class="hljs-keyword">return</span> <span class="hljs-built_in">parseInt</span>(n); }
+};
+
+<span class="hljs-keyword">var</span> ex4 = <span class="hljs-literal">undefined</span>
+
+
+
+<span class="hljs-comment">// Exercise 5</span>
+<span class="hljs-comment">// ==========</span>
+<span class="hljs-comment">// Write a function that will getPost then toUpperCase the post's title</span>
+
+<span class="hljs-comment">// getPost :: Int -&gt; Future({id: Int, title: String})</span>
+<span class="hljs-keyword">var</span> getPost = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-params">(i)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> Task(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(rej, res)</span> </span>{
+    setTimeout(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
+      res({id: i, title: <span class="hljs-string">'Love them futures'</span>})  
+    }, <span class="hljs-number">300</span>)
+  });
+}
+
+<span class="hljs-keyword">var</span> ex5 = <span class="hljs-literal">undefined</span>
+
+
+
+<span class="hljs-comment">// Exercise 6</span>
+<span class="hljs-comment">// ==========</span>
+<span class="hljs-comment">// Write a function that uses checkActive() and showWelcome() to grant access or return the error</span>
+
+<span class="hljs-keyword">var</span> showWelcome = _.compose(_.add( <span class="hljs-string">"Welcome "</span>), _.prop(<span class="hljs-string">'name'</span>))
+
+<span class="hljs-keyword">var</span> checkActive = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(user)</span> </span>{
+ <span class="hljs-keyword">return</span> user.active ? Right.of(user) : Left.of(<span class="hljs-string">'Your account is not active'</span>)
+}
+
+<span class="hljs-keyword">var</span> ex6 = <span class="hljs-literal">undefined</span>
+
+
+
+<span class="hljs-comment">// Exercise 7</span>
+<span class="hljs-comment">// ==========</span>
+<span class="hljs-comment">// Write a validation function that checks for a length &gt; 3. It should return Right(x) if it is greater than 3 and Left("You need &gt; 3") otherwise</span>
+
+<span class="hljs-keyword">var</span> ex7 = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-literal">undefined</span> <span class="hljs-comment">// &lt;--- write me. (don't be pointfree)</span>
+}
+
+
+
+<span class="hljs-comment">// Exercise 8</span>
+<span class="hljs-comment">// ==========</span>
+<span class="hljs-comment">// Use ex7 above and Either as a functor to save the user if they are valid or return the error message string. Remember either's two arguments must return the same type.</span>
+
+<span class="hljs-keyword">var</span> save = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span></span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> IO(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span></span>{
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">"SAVED USER!"</span>);
+    <span class="hljs-keyword">return</span> x + <span class="hljs-string">'-saved'</span>;
+  });
+}
+
+<span class="hljs-keyword">var</span> ex8 = <span class="hljs-literal">undefined</span>
+</code></pre>
+

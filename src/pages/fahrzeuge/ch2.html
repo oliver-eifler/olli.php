@@ -1,0 +1,130 @@
+<script type="json">{"isArticle":true,"title":"Chapter 2: First Class Functions","short":"First Class Functions","menuOrder":200,"layout":"article","htmlmin":true,"ctime":"2015-07-27T18:10:59.971Z","mtime":"2015-07-27T18:10:59.971Z"}</script>
+<h2 id="a-quick-review">A quick review</h2>
+<p>When we say functions are &quot;first class&quot;, we mean they are just like everyone else...so normal class[^coach?]. We can treat functions like any other data type and there is nothing particularly special about them - store them in arrays, pass them around, assign them to variables, what have you.</p>
+<p>That is JavaScript 101, but worth a mention as a quick code search on github will show the collective evasion, or perhaps widespread ignorance of the concept. Shall we go for a feigned example? We shall.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> hi = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(name)</span></span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-string">"Hi "</span> + name;
+};
+
+<span class="hljs-keyword">var</span> greeting = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(name)</span> </span>{
+  <span class="hljs-keyword">return</span> hi(name);
+};
+</code></pre>
+<p>Here, the function wrapper around <code>hi</code> in <code>greeting</code> is completely redundant. Why? Because functions are <em>callable</em> in JavaScript. When <code>hi</code> has the <code>()</code> at the end it will run and return a value. When it does not, it simply returns the function stored in the variable. Just to be sure, have a look-see:</p>
+<pre class="highlight"><code class="hljs javascript">hi;
+<span class="hljs-comment">// function(name){</span>
+<span class="hljs-comment">//  return "Hi " + name</span>
+<span class="hljs-comment">// }</span>
+
+hi(<span class="hljs-string">"jonas"</span>);
+<span class="hljs-comment">// "Hi jonas"</span>
+</code></pre>
+<p>Since <code>greeting</code> is merely turning around and calling <code>hi</code> with the very same argument, we could simply write:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> greeting = hi;
+
+
+greeting(<span class="hljs-string">"times"</span>);
+<span class="hljs-comment">// "Hi times"</span>
+</code></pre>
+<p>In other words, <code>hi</code> is already a function that expects one argument, why place another function around it that simply calls <code>hi</code> with the same bloody argument? It doesn&#39;t make any damn sense. It&#39;s like donning your heaviest parka in the dead of July just to blast the air and demand an ice lolly. It is obnoxiously verbose and, as it happens, bad practice to surround a function with another function merely to delay evaluation. (We&#39;ll see why in a moment, but it has to do with maintenance.)</p>
+<p>A solid understanding of this is critical before moving on, so let&#39;s see a few more fun examples excavated from npm modules.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// ignorant</span>
+<span class="hljs-keyword">var</span> getServerStuff = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(callback)</span></span>{
+  <span class="hljs-keyword">return</span> ajaxCall(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(json)</span></span>{
+    <span class="hljs-keyword">return</span> callback(json);
+  });
+};
+
+<span class="hljs-comment">// enlightened</span>
+<span class="hljs-keyword">var</span> getServerStuff = ajaxCall;
+</code></pre>
+<p>The world is littered with ajax code exactly like this. Here is the reason both are equivalent:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// this line</span>
+<span class="hljs-keyword">return</span> ajaxCall(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(json)</span></span>{
+  <span class="hljs-keyword">return</span> callback(json);
+});
+
+<span class="hljs-comment">// is the same as this line</span>
+<span class="hljs-keyword">return</span> ajaxCall(callback);
+
+<span class="hljs-comment">// so refactor getServerStuff</span>
+<span class="hljs-keyword">var</span> getServerStuff = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(callback)</span></span>{
+  <span class="hljs-keyword">return</span> ajaxCall(callback);
+};
+
+<span class="hljs-comment">// ...which is equivalent to this</span>
+<span class="hljs-keyword">var</span> getServerStuff = ajaxCall; <span class="hljs-comment">// &lt;-- look mum, no ()'s</span>
+</code></pre>
+<p>And that, folks, is how it is done. Once more then we&#39;ll see why I&#39;m so insistent.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> BlogController = (<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+  <span class="hljs-keyword">var</span> index = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(posts)</span> </span>{
+    <span class="hljs-keyword">return</span> Views.index(posts);
+  };
+
+  <span class="hljs-keyword">var</span> show = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(post)</span> </span>{
+    <span class="hljs-keyword">return</span> Views.show(post);
+  };
+
+  <span class="hljs-keyword">var</span> create = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(attrs)</span> </span>{
+    <span class="hljs-keyword">return</span> Db.create(attrs);
+  };
+
+  <span class="hljs-keyword">var</span> update = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(post, attrs)</span> </span>{
+    <span class="hljs-keyword">return</span> Db.update(post, attrs);
+  };
+
+  <span class="hljs-keyword">var</span> destroy = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(post)</span> </span>{
+    <span class="hljs-keyword">return</span> Db.destroy(post);
+  };
+
+  <span class="hljs-keyword">return</span> {index: index, show: show, create: create, update: update, destroy: destroy};
+})();
+</code></pre>
+<p>This ridiculous controller is 99% fluff. We could either rewrite it as:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> BlogController = {index: Views.index, show: Views.show, create: Db.create, update: Db.update, destroy: Db.destroy};
+</code></pre>
+<p>...or scrap it altogether as it does nothing other than bundle our Views and Db together.</p>
+<h2 id="why-favor-first-class-">Why favor first class?</h2>
+<p>Okay, let&#39;s get down to the reasons to favor First class functions. As we saw in the <code>getServerStuff</code> and <code>BlogController</code> examples, it&#39;s easy to add layers of indirection that have no actual value and only increase the amount of code to maintain and search through. If a function we are needlessly wrapping does change, however, we must also change our wrapper function.</p>
+<pre class="highlight"><code class="hljs javascript">httpGet(<span class="hljs-string">'/post/2'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(json)</span></span>{
+  <span class="hljs-keyword">return</span> renderPost(json);
+});
+</code></pre>
+<p>If <code>httpGet</code> were to change to send a possible <code>err</code>, we would need to go back and change the &quot;glue&quot;.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// go back to every httpGet call in the application and explicitly pass err along.</span>
+httpGet(<span class="hljs-string">'/post/2'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(json, err)</span></span>{
+  <span class="hljs-keyword">return</span> renderPost(json, err);
+});
+</code></pre>
+<p>Had we written it as a first class function, much less would need to change:</p>
+<pre class="highlight"><code class="hljs javascript">httpGet(<span class="hljs-string">'/post/2'</span>, renderPost);  <span class="hljs-comment">// renderPost is called from within httpGet with however many arguments it wants</span>
+</code></pre>
+<p>Besides the removal of unnecessary functions, we must name and reference arguments. Names are a bit of an issue, you see. We have potential misnomers - especially as the codebase ages and requirements change. Having multiple names for the same concept is a common source of confusion in projects. There is also the issue of generic code. For instance, these two functions do exactly the same thing, but one feels infinitely more general and reusable:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// specific to our current blog</span>
+<span class="hljs-keyword">var</span> validArticles = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(articles)</span> </span>{
+  <span class="hljs-keyword">return</span> articles.filter(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(article)</span></span>{
+    <span class="hljs-keyword">return</span> article !== <span class="hljs-literal">null</span> &amp;&amp; article !== <span class="hljs-literal">undefined</span>;
+  });
+};
+
+<span class="hljs-comment">// vastly more relevant for future projects</span>
+<span class="hljs-keyword">var</span> compact = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(xs)</span> </span>{
+  <span class="hljs-keyword">return</span> xs.filter(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{
+    <span class="hljs-keyword">return</span> x !== <span class="hljs-literal">null</span> &amp;&amp; x !== <span class="hljs-literal">undefined</span>;
+  });
+};
+</code></pre>
+<p>By naming things, we&#39;ve seemingly tied ourselves to specific data (in this case <code>articles</code>). This happens quite a bit and is a source of much reinvention.</p>
+<p>I must mention that, just like with Object-Oriented code, you must be aware of <code>this</code> coming to bite you in the jugular. If an underlying function uses <code>this</code> and we call it first class, we are subject to this leaky abstraction&#39;s wrath.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> fs = <span class="hljs-built_in">require</span>(<span class="hljs-string">'fs'</span>);
+
+<span class="hljs-comment">// scary</span>
+fs.readFile(<span class="hljs-string">'freaky_friday.txt'</span>, Db.save);
+
+<span class="hljs-comment">// less so</span>
+fs.readFile(<span class="hljs-string">'freaky_friday.txt'</span>, Db.save.bind(Db));
+</code></pre>
+<p>Having been bound to itself, the <code>Db</code> is free to access its prototypical garbage code. I avoid using <code>this</code> like a dirty nappy. There&#39;s really no need when writing functional code. However, when interfacing with other libraries, you&#39;ll have to acquiesce to the mad world around us. Some will argue <code>this</code> is necessary for speed. If you are the micro-optimization sort, please close this book. If you cannot get your money back, perhaps you can exchange it for something more novice.</p>
+<p>And with that, we&#39;re ready to move on.</p>
+<p><a href="/fahrzeuge/ch3">Chapter 3: Pure Happiness with Pure Functions</a></p>
+

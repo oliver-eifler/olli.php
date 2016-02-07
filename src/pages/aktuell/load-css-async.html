@@ -1,0 +1,66 @@
+<script type="json">{"isArticle":true,"title":"Load CSS Async","description":"A function for loading CSS asynchronously.","tags":"javascript, function, css, asyncron","layout":"article","htmlmin":true,"ctime":"2015-07-11T11:25:44.461Z","mtime":"2015-05-01T11:53:21.428Z"}</script>
+<p>[c]2014 @scottjehl, Filament Group, Inc.
+Licensed MIT</p>
+<h2 id="usage">Usage</h2>
+<p>Place the <a href="https://github.com/filamentgroup/loadCSS/blob/master/loadCSS.js"><code>loadCSS</code> function</a> inline in the <code>head</code> of your page (it can also be included in an external JavaScript file if preferable).</p>
+<p>Then call it by passing it a stylesheet URL:</p>
+<pre class="highlight"><code class="hljs xml"><span class="hljs-tag">&lt;<span class="hljs-title">head</span>&gt;</span>
+...
+<span class="hljs-tag">&lt;<span class="hljs-title">script</span>&gt;</span><span class="javascript">
+  <span class="hljs-comment">// include loadCSS here...</span>
+  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">loadCSS</span><span class="hljs-params">( href, before, media )</span></span>{ ... }
+  <span class="hljs-comment">// load a file</span>
+  loadCSS( <span class="hljs-string">"path/to/mystylesheet.css"</span> );
+</span><span class="hljs-tag">&lt;/<span class="hljs-title">script</span>&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-title">noscript</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-title">link</span> <span class="hljs-attribute">href</span>=<span class="hljs-value">"path/to/mystylesheet.css"</span> <span class="hljs-attribute">rel</span>=<span class="hljs-value">"stylesheet"</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-title">noscript</span>&gt;</span>
+...
+<span class="hljs-tag">&lt;/<span class="hljs-title">head</span>&gt;</span>
+</code></pre>
+<h4 id="optional-arguments">Optional Arguments</h4>
+<ul>
+<li><p>By default, your stylesheet will be inserted before the first <code>script</code> tag in the DOM (which may be the one shown above). If you need another insert location, use the optional <code>before</code> argument to specify a different sibling element. The stylesheet will be inserted before the element you specify.</p>
+</li>
+<li><p>You can optionally pass a string to the media argument to set the <code>media=&quot;&quot;</code> of the stylesheet - the default value is <code>all</code>.</p>
+</li>
+</ul>
+<h4 id="using-with-onload-">Using with <code>onload</code></h4>
+<p>Include <a href="https://github.com/filamentgroup/loadCSS/blob/master/onloadCSS.js"><code>onloadCSS</code> function</a> on your page.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">onloadCSS</span><span class="hljs-params">( ss, callback )</span></span>{ ... }
+
+<span class="hljs-keyword">var</span> stylesheet = loadCSS( <span class="hljs-string">"path/to/mystylesheet.css"</span> );
+onloadCSS( stylesheet, <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">()</span> </span>{
+    <span class="hljs-built_in">console</span>.log( <span class="hljs-string">"Stylesheet has asynchronously loaded."</span> );
+});
+</code></pre>
+<h4 id="contributions-and-bug-fixes">Contributions and bug fixes</h4>
+<p>Both are very much appreciated - especially bug fixes. As for contributions, the goals of this project are to keep things very simple and utilitarian, so if we don&#39;t accept a feature addition, it&#39;s not necessarily because it&#39;s a bad idea. It just may not meet the goals of the project. Thanks!</p>
+<h3 id="usage-example-with-content-fonts">Usage Example with Content Fonts</h3>
+<p>Defeating the Flash of Invisible Text (FOIT) is easy with <code>loadCSS</code>. The Flash of Unstyled Text (FOUT) is a feature for progressively rendered web sites—we want our content usable by readers as soon as possible.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-comment">// Cut the mustard, choose your own method here—querySelector is an easy one.</span>
+<span class="hljs-keyword">if</span>( <span class="hljs-string">"querySelector"</span> <span class="hljs-keyword">in</span> win.document ) {
+
+    <span class="hljs-comment">// test for font-face version to load via Data URI'd CSS</span>
+    <span class="hljs-keyword">var</span> fontFile = <span class="hljs-string">"/url/to/woff.css"</span>,
+        ua = <span class="hljs-built_in">window</span>.navigator.userAgent;
+
+    <span class="hljs-comment">// Android's default browser needs TTF instead of WOFF</span>
+    <span class="hljs-keyword">if</span>( ua.indexOf( <span class="hljs-string">"Android 4."</span> ) &gt; -<span class="hljs-number">1</span> &amp;&amp; ua.indexOf( <span class="hljs-string">"like Gecko"</span> ) &gt; -<span class="hljs-number">1</span> &amp;&amp; ua.indexOf( <span class="hljs-string">"Chrome"</span> ) === -<span class="hljs-number">1</span> ) {
+        fontFile = <span class="hljs-string">"/url/to/ttf.css"</span>;
+    }
+
+    <span class="hljs-comment">// load fonts</span>
+    <span class="hljs-keyword">if</span>( fontFile ) {
+        loadCSS( fontFile );
+    }
+}
+</code></pre>
+<p>Where <code>/url/to/woff.css</code> and <code>/url/to/ttf.css</code> contain something like:</p>
+<pre class="highlight"><code class="hljs css"><span class="hljs-at_rule">@<span class="hljs-keyword">font-face</span></span> <span class="hljs-rules">{
+  <span class="hljs-rule"><span class="hljs-attribute">font-family</span>:<span class="hljs-value"> My Font Family Name</span></span>;
+  <span class="hljs-comment">/* Important: Data URI here to prevent FOIT */</span>
+  <span class="hljs-rule"><span class="hljs-attribute">src</span>:<span class="hljs-value"> <span class="hljs-function">url</span>(<span class="hljs-string">"data:application/x-font-woff;charset=utf-8;base64,..."</span>) <span class="hljs-function">format</span>(<span class="hljs-string">"woff"</span>)</span></span>;
+  <span class="hljs-rule"><span class="hljs-attribute">font-weight</span>:<span class="hljs-value"> normal</span></span>;
+  <span class="hljs-rule"><span class="hljs-attribute">font-style</span>:<span class="hljs-value"> normal</span></span>;
+<span class="hljs-rule">}</span></span>
+</code></pre>
+

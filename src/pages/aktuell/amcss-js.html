@@ -1,0 +1,152 @@
+<script type="json">{"isArticle":true,"title":"amcss.js","tags":"javascript,library,attribute,module selector","description":"A javascript library for using attributes and their values rather than classes for styling HTML elements.","layout":"article","htmlmin":true,"ctime":"2015-07-11T11:25:44.455Z","mtime":"2015-05-02T16:40:28.047Z"}</script>
+<p>Based on <strong>AMCSS</strong> Attribute Modules for CSS - Specification <a href="github.com/amcss/attribute-module-specification">github.com/amcss/attribute-module-specification</a>.</p>
+<p><strong> Works on all browsers which supports attribute and ~= selectors </strong></p>
+<hr>
+<h2 id="installation">Installation</h2>
+<p><code>&lt;script src=&quot;am.js&quot;&gt;&lt;/script&gt;</code></p>
+<p>On older browsers which don&#39;t support Array.IsArray and Array.indexOf include es5-shim <a href="https://github.com/es-shims/es5-shim">github.com/es-shims/es5-shim</a> before am.js</p>
+<h2 id="some-issues-">some Issues:</h2>
+<ul>
+<li>works only on browsers which supports attribute and ~= selectors (no IE6 and below)</li>
+<li>module names are case sensitive on IE only.</li>
+<li>value names are case sensitive everywhere.</li>
+<li>strange results on ie7 if you use module-names with seperator as mentioned in <a href="github.com/amcss/attribute-module-specification">specification</a>.
+If you want to support IE7 dont use seperators in module-names (i.e. am-Button =&gt; amButton)</li>
+</ul>
+<hr>
+<h1 id="api-">API:</h1>
+<h2 id="-am-element-">$am(element)</h2>
+<p><code>$am(element)</code> gives you a new chainable am instance (like jQuery) containing the element.</p>
+<ul>
+<li><code>element</code> is a single DOM element</li>
+</ul>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> testam=$am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)); <span class="hljs-comment">//get a new am instance</span>
+testam.setModule(<span class="hljs-string">"am-Button"</span>); <span class="hljs-comment">//sets the module on #test</span>
+</code></pre>
+<p><strong> Once you have a instance, you can call any of the $am methods on it.</strong></p>
+<h3 id="-hasmodule-module-">.hasModule(module)</h3>
+<p><code>.hasModule(module)</code> returns <code>true</code> if the element has the module or <code>false</code> if not.</p>
+<ul>
+<li><code>module</code> Modulename (string)</li>
+</ul>
+<pre class="highlight"><code class="hljs xml">    <span class="hljs-tag">&lt;<span class="hljs-title">div</span> <span class="hljs-attribute">id</span>=<span class="hljs-value">"test"</span> <span class="hljs-attribute">am-Button</span>=<span class="hljs-value">"green"</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+</code></pre>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-built_in">console</span>.log(
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>))
+    .hasModule(<span class="hljs-string">"am-Button"</span>)
+    ); <span class="hljs-comment">//logs true</span>
+<span class="hljs-built_in">console</span>.log(
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>))
+    .hasModule(<span class="hljs-string">"am-Grid"</span>)
+    ); <span class="hljs-comment">//logs false</span>
+</code></pre>
+<h3 id="-getmodules-">.getModules()</h3>
+<p><code>.getModules()</code> returns a array with all modules (i.e. uncommon attribute names).</p>
+<pre class="highlight"><code class="hljs xml">    <span class="hljs-tag">&lt;<span class="hljs-title">div</span> <span class="hljs-attribute">id</span>=<span class="hljs-value">"test"</span> <span class="hljs-attribute">am-Button</span>=<span class="hljs-value">"green"</span> <span class="hljs-attribute">am_Grid</span>=<span class="hljs-value">"1/3"</span> <span class="hljs-attribute">title</span>=<span class="hljs-value">"Hallo"</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+</code></pre>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-built_in">console</span>.log(
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).getModules()K
+    ); <span class="hljs-comment">//logs ["am-Button","am-Grid"]</span>
+</code></pre>
+<h3 id="-setmodule-module-values-">.setModule(module[,values])</h3>
+<p><code>.setModule(module[,values])</code> add a module to a element and optional set its value. Module Values, if any, are saved between toggle</p>
+<ul>
+<li><code>module</code> Modulename (string)</li>
+<li><code>values</code> Values to set. Array of valuenames or string with one or more space-seperated value-names</li>
+</ul>
+<pre class="highlight"><code class="hljs xml">    <span class="hljs-tag">&lt;<span class="hljs-title">div</span> <span class="hljs-attribute">id</span>=<span class="hljs-value">"test"</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-title">div</span> <span class="hljs-attribute">id</span>=<span class="hljs-value">"test2"</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-title">div</span> <span class="hljs-attribute">id</span>=<span class="hljs-value">"test3"</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+</code></pre>
+<pre class="highlight"><code class="hljs javascript">    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).setModule(<span class="hljs-string">"am-Button"</span>); <span class="hljs-comment">//&lt;div id="test" am-Button=""&gt;&lt;/div&gt;</span>
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test2"</span>)).setModule(<span class="hljs-string">"am-Button"</span>,<span class="hljs-string">"green"</span>); <span class="hljs-comment">//&lt;div id="test2" am-Button="green"&gt;&lt;/div&gt;</span>
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test3"</span>)).setModule(<span class="hljs-string">"am-Button"</span>,[<span class="hljs-string">"green"</span>,<span class="hljs-string">"round"</span>,<span class="hljs-string">"big"</span>]); <span class="hljs-comment">//&lt;div id="test3" am-Button="green round big"&gt;&lt;/div&gt;</span>
+    <span class="hljs-comment">//same as</span>
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test3"</span>)).setModule(<span class="hljs-string">"am-Button"</span>,<span class="hljs-string">"green round big"</span>);
+</code></pre>
+<h3 id="-removemodule-module-">.removeModule(module)</h3>
+<p><code>.removeModule(module)</code> remove a module from a element.</p>
+<ul>
+<li><code>module</code> Modulename (string)</li>
+</ul>
+<pre class="highlight"><code class="hljs xml">    <span class="hljs-tag">&lt;<span class="hljs-title">div</span> <span class="hljs-attribute">id</span>=<span class="hljs-value">"test"</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+</code></pre>
+<pre class="highlight"><code class="hljs javascript">    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).setModule(<span class="hljs-string">"am-Button"</span>); <span class="hljs-comment">//&lt;div id="test" am-Button=""&gt;&lt;/div&gt;</span>
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).setModule(<span class="hljs-string">"am-Grid"</span>); <span class="hljs-comment">//&lt;div id="test" am-Button="" am-Grid=""&gt;&lt;/div&gt;</span>
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).removeModule(<span class="hljs-string">"am-Button"</span>); <span class="hljs-comment">//&lt;div id="test" am-Button=""&gt;&lt;/div&gt;</span>
+</code></pre>
+<h3 id="-togglemodule-modules-">.toggleModule(modules)</h3>
+<p><code>.toggleModule(modules)</code> toggles (switch on/off) one or more modules of a element.</p>
+<ul>
+<li><code>modules</code> Modules to toggle. Array of module-names or string with one or more space-seperated module-names</li>
+</ul>
+<pre class="highlight"><code class="hljs xml">    <span class="hljs-tag">&lt;<span class="hljs-title">div</span> <span class="hljs-attribute">id</span>=<span class="hljs-value">"test"</span> <span class="hljs-attribute">am-Button</span>=<span class="hljs-value">"round"</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+</code></pre>
+<pre class="highlight"><code class="hljs javascript">    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).toggleModule(<span class="hljs-string">"am-Button"</span>); <span class="hljs-comment">//&lt;div id="test"&gt;&lt;/div&gt;</span>
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).toggleModule(<span class="hljs-string">"am-Button"</span>); <span class="hljs-comment">//&lt;div id="test" am-Button="round"&gt;&lt;/div&gt;</span>
+</code></pre>
+<h3 id="-getmodule-module-">.getModule(module)</h3>
+<p><code>.getModule(module)</code> returns array of value-names if module is set or empty array.</p>
+<ul>
+<li><code>module</code> Modulename (string)</li>
+</ul>
+<pre class="highlight"><code class="hljs xml">    <span class="hljs-tag">&lt;<span class="hljs-title">div</span> <span class="hljs-attribute">id</span>=<span class="hljs-value">"test"</span> <span class="hljs-attribute">am-Button</span>=<span class="hljs-value">"round green"</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+</code></pre>
+<pre class="highlight"><code class="hljs javascript">    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).getModule(<span class="hljs-string">"am-Button"</span>); <span class="hljs-comment">//returns ["round","green"]</span>
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).getModule(<span class="hljs-string">"am-Grid"</span>); <span class="hljs-comment">//returns []</span>
+</code></pre>
+<h3 id="-setval-module-values-">.setVal(module,values)</h3>
+<p><code>.setVal(module,values)</code> Add one or more values to a module. Create the Module if it dosn&#39;t exists&#39;</p>
+<ul>
+<li><code>module</code> Modulename (string)</li>
+<li><code>values</code> Values to set. Array of valuenames or string with one or more space-seperated value-names</li>
+</ul>
+<pre class="highlight"><code class="hljs xml">    <span class="hljs-tag">&lt;<span class="hljs-title">div</span> <span class="hljs-attribute">id</span>=<span class="hljs-value">"test"</span> <span class="hljs-attribute">am-Button</span>=<span class="hljs-value">"round"</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+</code></pre>
+<pre class="highlight"><code class="hljs javascript">    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).setVal(<span class="hljs-string">"am-Button"</span>,<span class="hljs-string">"big"</span>); <span class="hljs-comment">//&lt;div id="test" am-Button="round big"&gt;&lt;/div&gt;</span>
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).setVal(<span class="hljs-string">"am-Grid"</span>,<span class="hljs-string">"1/3"</span>); <span class="hljs-comment">//&lt;div id="test" am-Button="round big" am-Grid="1/3"&gt;&lt;/div&gt;</span>
+</code></pre>
+<h3 id="-hasval-module-values-">.hasVal(module,values)</h3>
+<p><code>.setVal(module,values)</code> returns <strong>true</strong> if all values exists, otherwith <strong>false</strong></p>
+<ul>
+<li><code>module</code> Modulename (string)</li>
+<li><code>values</code> Values to check. Array of valuenames or string with one or more space-seperated value-names</li>
+</ul>
+<pre class="highlight"><code class="hljs xml">    <span class="hljs-tag">&lt;<span class="hljs-title">div</span> <span class="hljs-attribute">id</span>=<span class="hljs-value">"test"</span> <span class="hljs-attribute">am-Button</span>=<span class="hljs-value">"round"</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+</code></pre>
+<pre class="highlight"><code class="hljs javascript">    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).hasVal(<span class="hljs-string">"am-Button"</span>,<span class="hljs-string">"big"</span>); <span class="hljs-comment">//returns false</span>
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).hasVal(<span class="hljs-string">"am-Grid"</span>,<span class="hljs-string">"round"</span>); <span class="hljs-comment">//returns true;</span>
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).hasVal(<span class="hljs-string">"am-Grid"</span>,<span class="hljs-string">"round big"</span>); <span class="hljs-comment">//returns false;</span>
+</code></pre>
+<h3 id="-removeval-module-values-">.removeVal(module,values)</h3>
+<p><code>.removeVal(module,values)</code> Remove one or more values from a module.</p>
+<ul>
+<li><code>module</code> Modulename (string)</li>
+<li><code>values</code> Values to remove. Array of valuenames or string with one or more space-seperated value-names</li>
+</ul>
+<pre class="highlight"><code class="hljs xml">    <span class="hljs-tag">&lt;<span class="hljs-title">div</span> <span class="hljs-attribute">id</span>=<span class="hljs-value">"test"</span> <span class="hljs-attribute">am-Button</span>=<span class="hljs-value">"round"</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+</code></pre>
+<pre class="highlight"><code class="hljs javascript">    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).setVal(<span class="hljs-string">"am-Button"</span>,<span class="hljs-string">"big"</span>); <span class="hljs-comment">//&lt;div id="test" am-Button="round big"&gt;&lt;/div&gt;</span>
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).removeVal(<span class="hljs-string">"am-Button"</span>,<span class="hljs-string">"round"</span>); <span class="hljs-comment">//&lt;div id="test" am-Button="big"&gt;&lt;/div&gt;</span>
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).removeVal(<span class="hljs-string">"am-Button"</span>,<span class="hljs-string">"big"</span>); <span class="hljs-comment">//&lt;div id="test" am-Button=""&gt;&lt;/div&gt;</span>
+</code></pre>
+<h3 id="-toggleval-module-values-">.toggleVal(module,values)</h3>
+<p><code>.toggleVal(module,values)</code> Toggles (switch on/off) one or more values from a module.</p>
+<ul>
+<li><code>module</code> Modulename (string)</li>
+<li><code>values</code> Values to toggle. Array of valuenames or string with one or more space-seperated value-names</li>
+</ul>
+<pre class="highlight"><code class="hljs xml">    <span class="hljs-tag">&lt;<span class="hljs-title">div</span> <span class="hljs-attribute">id</span>=<span class="hljs-value">"test"</span> <span class="hljs-attribute">am-Button</span>=<span class="hljs-value">"round"</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-title">div</span>&gt;</span>
+</code></pre>
+<pre class="highlight"><code class="hljs javascript">    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).toggleVal(<span class="hljs-string">"am-Button"</span>,<span class="hljs-string">"round"</span>); <span class="hljs-comment">//&lt;div id="test" am-Button=""&gt;&lt;/div&gt;</span>
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).removeVal(<span class="hljs-string">"am-Button"</span>,<span class="hljs-string">"big"</span>); <span class="hljs-comment">//&lt;div id="test" am-Button="big"&gt;&lt;/div&gt;</span>
+    $am(<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">"test"</span>)).removeVal(<span class="hljs-string">"am-Button"</span>,<span class="hljs-string">"round big"</span>); <span class="hljs-comment">//&lt;div id="test" am-Button="round"&gt;&lt;/div&gt;</span>
+</code></pre>
+<hr>
+<h2 id="other-functions-">Other functions:</h2>
+<p><code>$am.getVersion()</code> returns version string</p>
+<p><code>$am.useForcedRefresh()</code> returns <strong>true</strong> if elements are not automatically updated on module change</p>
+<hr>
+<h2 id="licence">Licence</h2>
+<p><a href="LICENSE">MIT License</a>. (Copyright) Oliver Jean EIfler (olli.eifler@gmail.com).</p>
+

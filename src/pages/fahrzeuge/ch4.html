@@ -1,0 +1,156 @@
+<script type="json">{"isArticle":true,"title":"Chapter 4: Currying","short":"Currying","menuOrder":400,"layout":"article","htmlmin":true,"ctime":"2015-07-27T18:10:59.964Z","mtime":"2015-07-27T18:10:59.964Z"}</script>
+<h2 id="can-t-live-if-livin-is-without-you">Can&#39;t live if livin&#39; is without you</h2>
+<p>My Dad once explained how there are certain things one can live without until one acquires them. A microwave is one such thing. Smart phones, another. The older folks among us will remember a fulfilling life sans internet. For me, currying is among this list.</p>
+<p>The concept is simple: You can call a function with fewer arguments than it expects. What is returned is a function that takes the remaining arguments.</p>
+<p>You can choose to call it all at once or simply feed in each argument piecemeal.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> add = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(y)</span> </span>{
+    <span class="hljs-keyword">return</span> x + y;
+  };
+};
+
+<span class="hljs-keyword">var</span> increment = add(<span class="hljs-number">1</span>);
+<span class="hljs-keyword">var</span> addTen = add(<span class="hljs-number">10</span>);
+
+increment(<span class="hljs-number">2</span>);
+<span class="hljs-comment">// 3</span>
+
+addTen(<span class="hljs-number">2</span>);
+<span class="hljs-comment">// 12</span>
+</code></pre>
+<p>Here we&#39;ve made a function <code>add</code> that will take one argument and return a function. By calling it, the returned function remembers the first argument from then on via the closure. Calling it all at once is a bit of a pain, however, so we can use a special helper function called <code>curry</code> to make defining and calling functions like this easier.</p>
+<p>Let&#39;s setup a few curried functions for our enjoyment.</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> curry = <span class="hljs-built_in">require</span>(<span class="hljs-string">'lodash.curry'</span>);
+
+<span class="hljs-keyword">var</span> match = curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(what, x)</span> </span>{
+  <span class="hljs-keyword">return</span> x.match(what);
+});
+
+<span class="hljs-keyword">var</span> replace = curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(what, replacement, x)</span> </span>{
+  <span class="hljs-keyword">return</span> x.replace(what, replacement);
+});
+
+<span class="hljs-keyword">var</span> filter = curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(f, xs)</span> </span>{
+  <span class="hljs-keyword">return</span> xs.filter(f);
+});
+
+<span class="hljs-keyword">var</span> map = curry(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(f, xs)</span> </span>{
+  <span class="hljs-keyword">return</span> xs.map(f);
+});
+</code></pre>
+<p>The pattern I&#39;ve followed is a simple, but important one. I&#39;ve strategically positioned the data we&#39;re operating on (String, Array) as the last argument. It will become clear as to why upon use.</p>
+<pre class="highlight"><code class="hljs javascript">match(<span class="hljs-regexp">/\s+/g</span>, <span class="hljs-string">"hello world"</span>);
+<span class="hljs-comment">// [ ' ' ]</span>
+
+match(<span class="hljs-regexp">/\s+/g</span>)(<span class="hljs-string">"hello world"</span>);
+<span class="hljs-comment">// [ ' ' ]</span>
+
+<span class="hljs-keyword">var</span> hasSpaces = match(<span class="hljs-regexp">/\s+/g</span>);
+<span class="hljs-comment">// function(x) { return x.match(/\s+/g) }</span>
+
+hasSpaces(<span class="hljs-string">"hello world"</span>);
+<span class="hljs-comment">// [ ' ' ]</span>
+
+hasSpaces(<span class="hljs-string">"spaceless"</span>);
+<span class="hljs-comment">// null</span>
+
+filter(hasSpaces, [<span class="hljs-string">"tori_spelling"</span>, <span class="hljs-string">"tori amos"</span>]);
+<span class="hljs-comment">// ["tori amos"]</span>
+
+<span class="hljs-keyword">var</span> findSpaces = filter(hasSpaces);
+<span class="hljs-comment">// function(xs) { return xs.filter(function(x) { return x.match(/\s+/g) }) }</span>
+
+findSpaces([<span class="hljs-string">"tori_spelling"</span>, <span class="hljs-string">"tori amos"</span>]);
+<span class="hljs-comment">// ["tori amos"]</span>
+
+<span class="hljs-keyword">var</span> noVowels = replace(<span class="hljs-regexp">/[aeiou]/ig</span>);
+<span class="hljs-comment">// function(replacement, x) { return x.replace(/[aeiou]/ig, replacement) }</span>
+
+<span class="hljs-keyword">var</span> censored = noVowels(<span class="hljs-string">"*"</span>);
+<span class="hljs-comment">// function(x) { return x.replace(/[aeiou]/ig, "*") }</span>
+
+censored(<span class="hljs-string">"Chocolate Rain"</span>);
+<span class="hljs-comment">// 'Ch*c*l*t* R**n'</span>
+</code></pre>
+<p>What&#39;s being demonstrated here is the ability to &quot;pre-load&quot; a function with an argument or two in order to receive a new function that remembers those arguments.</p>
+<p>I encourage you to <code>npm install lodash</code>, copy the code above and have a go at it in the repl. You can also do this in a browser where lodash or ramda is available.</p>
+<h2 id="more-than-a-pun-special-sauce">More than a pun / special sauce</h2>
+<p>Currying is useful for many things. We can make new functions just by giving them some arguments as seen in <code>hasSpaces</code>, <code>findSpaces</code>, and <code>censored</code>.</p>
+<p>We also have the ability to transform any function that works on single elements into a function that works on arrays simply by wrapping it with <code>map</code>:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> getChildren = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span> </span>{
+  <span class="hljs-keyword">return</span> x.childNodes;
+};
+
+<span class="hljs-keyword">var</span> allTheChildren = map(getChildren);
+</code></pre>
+<p>Giving a function fewer arguments than it expects is typically called <em>partial application</em>. Partially applying a function can remove a lot of boiler plate code. Consider what the above <code>allTheChildren</code> function would be with the uncurried <code>map</code> from lodash[^note the arguments are in a different order]:</p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> allTheChildren = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(elements)</span> </span>{
+  <span class="hljs-keyword">return</span> _.map(elements, getChildren);
+};
+</code></pre>
+<p>We typically don&#39;t define functions that work on arrays, because we can just call <code>map(getChildren)</code> inline. Same with <code>sort</code>, <code>filter</code>, and other higher order functions[^Higher order function: A function that takes or returns a function].</p>
+<p>When we spoke about <em>pure functions</em>, we said they take 1 input to 1 output. Currying does exactly this: each single argument returns a new function expecting the remaining arguments. That, old sport, is 1 input to 1 output. No matter if the output is another function - it qualifies as pure. We do allow more than one argument at a time, but this is seen as merely removing the extra <code>()</code>&#39;s for convenience.</p>
+<h2 id="in-summary">In summary</h2>
+<p>Currying is handy and I very much enjoy working with curried functions on a daily basis. It is one tool for the belt that makes functional programming less verbose and tedious. We can make new, useful functions on the fly simply by passing in a few arguments and as a bonus, we&#39;ve retained the mathematical function definition despite multiple arguments.</p>
+<p>Let&#39;s acquire another essential tool called <code>compose</code>.</p>
+<p><a href="/fahrzeuge/ch5">Chapter 5: Coding by Composing</a></p>
+<h2 id="exercises">Exercises</h2>
+<p>A quick word before we start. We&#39;ll use a library called <em>ramda</em> which curries every function by default. Alternatively you may choose to use <em>lodash-fp</em> which does the same and is written/maintained by the creator of lodash. Both will work just fine and it is a matter of preference.</p>
+<p><a href="http://ramdajs.com">ramda</a>
+<a href="https://github.com/lodash/lodash-fp">lodash-fp</a></p>
+<p>Answers are provided with the code in the <a href="https://github.com/DrBoolean/mostly-adequate-guide/tree/master/code/part1_exercises/answers">repository for this book</a></p>
+<pre class="highlight"><code class="hljs javascript"><span class="hljs-keyword">var</span> _ = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ramda'</span>);
+
+
+<span class="hljs-comment">// Exercise 1</span>
+<span class="hljs-comment">//==============</span>
+<span class="hljs-comment">// Refactor to remove all arguments by partially applying the function</span>
+
+<span class="hljs-keyword">var</span> words = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(str)</span> </span>{
+  <span class="hljs-keyword">return</span> _.split(<span class="hljs-string">' '</span>, str);
+};
+
+<span class="hljs-comment">// Exercise 1a</span>
+<span class="hljs-comment">//==============</span>
+<span class="hljs-comment">// Use map to make a new words fn that works on an array of strings.</span>
+
+<span class="hljs-keyword">var</span> sentences = <span class="hljs-literal">undefined</span>;
+
+
+<span class="hljs-comment">// Exercise 2</span>
+<span class="hljs-comment">//==============</span>
+<span class="hljs-comment">// Refactor to remove all arguments by partially applying the functions</span>
+
+<span class="hljs-keyword">var</span> filterQs = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(xs)</span> </span>{
+  <span class="hljs-keyword">return</span> _.filter(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x)</span></span>{ <span class="hljs-keyword">return</span> _.match(<span class="hljs-regexp">/q/i</span>, x);  }, xs);
+};
+
+
+<span class="hljs-comment">// Exercise 3</span>
+<span class="hljs-comment">//==============</span>
+<span class="hljs-comment">// Use the helper function _keepHighest to refactor max to not reference any arguments</span>
+
+<span class="hljs-comment">// LEAVE BE:</span>
+<span class="hljs-keyword">var</span> _keepHighest = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(x,y)</span></span>{ <span class="hljs-keyword">return</span> x &gt;= y ? x : y; };
+
+<span class="hljs-comment">// REFACTOR THIS ONE:</span>
+<span class="hljs-keyword">var</span> max = <span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(xs)</span> </span>{
+  <span class="hljs-keyword">return</span> _.reduce(<span class="hljs-function"><span class="hljs-keyword">function</span><span class="hljs-params">(acc, x)</span></span>{
+    <span class="hljs-keyword">return</span> _keepHighest(acc, x);
+  }, <span class="hljs-number">0</span>, xs);
+};
+
+
+<span class="hljs-comment">// Bonus 1:</span>
+<span class="hljs-comment">// ============</span>
+<span class="hljs-comment">// wrap array's slice to be functional and curried.</span>
+<span class="hljs-comment">// //[1,2,3].slice(0, 2)</span>
+<span class="hljs-keyword">var</span> slice = <span class="hljs-literal">undefined</span>;
+
+
+<span class="hljs-comment">// Bonus 2:</span>
+<span class="hljs-comment">// ============</span>
+<span class="hljs-comment">// use slice to define a function "take" that takes n elements. Make it curried</span>
+<span class="hljs-keyword">var</span> take = <span class="hljs-literal">undefined</span>;
+</code></pre>
+
